@@ -1,0 +1,23 @@
+--extra-index-url https://pypi.nvidia.com
+ogbench
+jax[cuda12] >= 0.4.31
+flax >= 0.8.4
+distrax >= 0.1.5
+optax
+numpy
+ml_collections
+matplotlib
+moviepy
+networkx
+nx-cugraph-cu12
+tqdm
+absl-py
+gymnasium
+pillow
+dm_control
+lxml
+scipy
+wandb
+hydra-core
+omegaconf
+hydra-submitit-launcher
