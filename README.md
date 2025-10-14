@@ -1,5 +1,8 @@
 # TEST-TIME GRAPH SEARCH FOR GOAL-CONDITIONED REINFORCEMENT LEARNING
 
+Paper: [https://arxiv.org/abs/2510.07257](https://arxiv.org/abs/2510.07257)
+Website: [https://ktolnos.github.io/ttgs/](https://ktolnos.github.io/ttgs/)
+
 ## Overview
 This is the implementation of TTGS method.
 
@@ -56,3 +59,16 @@ python main.py --subsample_ablt=random_points --random_size=4000 --tau=24 --thre
 ## Acknowledgments
 This codebase is inspired by or partly uses code from the following repositories:
 - [OGBench](https://github.com/seohongpark/ogbench) for the dataset structure and the state-based and pixel-based environments.
+
+## Citation (BibTeX)
+```
+@misc{opryshko2025testtimegraphsearchgoalconditioned,
+      title={Test-Time Graph Search for Goal-Conditioned Reinforcement Learning}, 
+      author={Evgenii Opryshko and Junwei Quan and Claas Voelcker and Yilun Du and Igor Gilitschenski},
+      year={2025},
+      eprint={2510.07257},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2510.07257}, 
+}
+```
