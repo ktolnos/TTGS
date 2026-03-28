@@ -1,0 +1,1024 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{icml2026}
+
+\input{math_commands.tex}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage[backref=page, colorlinks]{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage[table,dvipsnames]{xcolor}         % colors
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{subcaption}
+\usepackage{amssymb}
+\usepackage[all]{nowidow}
+\usepackage{uoftcolors}
+\usepackage{placeins}
+
+\usepackage{tabularx}
+\usepackage{adjustbox}
+
+\usepackage{enumitem}
+\usepackage{makecell}
+\usepackage[capitalize,noabbrev,nameinlink]{cleveref}
+\usepackage{float}
+
+\usepackage{basic_commands}
+
+\newcommand{\NA}{\textemdash}
+\newlength{\subcolumnwidth}
+\newenvironment{subcolumns}[1][0.45\columnwidth]
+ {\valign\bgroup\hsize=#1\setlength{\subcolumnwidth}{\hsize}\vfil##\vfil\cr}
+ {\crcr\egroup}
+\newcommand{\nextsubcolumn}[1][]{%
+  \cr\noalign{\hfill}
+  \if\relax\detokenize{#1}\relax\else\hsize=#1\setlength{\subcolumnwidth}{\hsize}\fi
+}
+\newcommand{\nextsubfigure}{\vfill}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+\newcommand{\algorithmautorefname}{Algorithm}
+
+
+\hypersetup{
+  allcolors=uoftblue
+}
+
+
+\newcommand{\cv}[1]{{\color{ForestGreen} CV: #1}}
+\newcommand{\eo}[1]{{\color{uoftdarkpurple} EO: #1}}
+
+\icmltitlerunning{Test-Time Graph Search for Goal-Conditioned Reinforcement Learning}
+
+\begin{document}
+
+
+\twocolumn[
+  \icmltitle{Test-Time Graph Search for Goal-Conditioned Reinforcement Learning}
+
+  % It is OKAY to include author information, even for blind submissions: the
+  % style file will automatically remove it for you unless you've provided
+  % the [accepted] option to the icml2026 package.
+
+  % List of affiliations: The first argument should be a (short) identifier you
+  % will use later to specify author affiliations Academic affiliations
+  % should list Department, University, City, Region, Country Industry
+  % affiliations should list Company, City, Region, Country
+
+  % You can specify symbols, otherwise they are numbered in order. Ideally, you
+  % should not use this facility. Affiliations will be numbered in order of
+  % appearance and this is the preferred way.
+  \icmlsetsymbol{equal}{*}
+
+  \begin{icmlauthorlist}
+    \icmlauthor{Firstname1 Lastname1}{equal,yyy}
+    \icmlauthor{Firstname2 Lastname2}{equal,yyy,comp}
+    \icmlauthor{Firstname3 Lastname3}{comp}
+    \icmlauthor{Firstname4 Lastname4}{sch}
+  \end{icmlauthorlist}
+
+  \icmlaffiliation{yyy}{Department of XXX, University of YYY, Location, Country}
+  \icmlaffiliation{comp}{Company Name, Location, Country}
+  \icmlaffiliation{sch}{School of ZZZ, Institute of WWW, Location, Country}
+
+  \icmlcorrespondingauthor{Firstname1 Lastname1}{first1.last1@xxx.edu}
+
+  % You may provide any keywords that you find helpful for describing your
+  % paper; these are used to populate the "keywords" metadata in the PDF but
+  % will not be shown in the document
+  \icmlkeywords{Machine Learning, ICML}
+
+  \vskip 0.3in
+]
+
+
+% this must go after the closing bracket ] following \twocolumn[ ...
+
+% This command actually creates the footnote in the first column listing the
+% affiliations and the copyright notice. The command takes one argument, which
+% is text to display at the start of the footnote. The \icmlEqualContribution
+% command is standard text for equal contribution. Remove it (just {}) if you
+% do not need this facility.
+
+% Use ONE of the following lines. DO NOT remove the command.
+% If you have no special notice, KEEP empty braces:
+\printAffiliationsAndNotice{}  % no special notice (required even if empty)
+% Or, if applicable, use the standard equal contribution text:
+% \printAffiliationsAndNotice{\icmlEqualContribution}
+
+\begin{abstract}
+Offline goal-conditioned reinforcement learning (GCRL) often struggles with long-horizon tasks, where errors in value estimation accumulate and produce unreliable policies. It is typically assumed that effective long-term planning is infeasible without specialized training. In contrast, our work demonstrates that existing GCRL policies can complete long-horizon tasks when combined with a lightweight, training-free planning wrapper. We find that standard goal-conditioned value functions encode locally consistent geometric structure sufficient for planning. Our approach, Test-Time Graph Search (TTGS), constructs a graph over the offline dataset and employs an adaptive subgoal selection strategy. To address unreliable value estimates during shortest-path search, we propose a novel mechanism that softly penalizes long-distance transitions. Our method incurs negligible computational overhead and requires no additional supervision or parameter updates. On the OGBench benchmark, TTGS unlocks latent capabilities in diverse base learners, boosting success rates on challenging locomotion tasks from near-zero to over 90\%, often matching or outperforming methods that require complex auxiliary training.
+\end{abstract}
+
+\section{Introduction}
+
+\begin{figure}
+\centering
+    \includegraphics[width=1\linewidth]{plots/teasernew.pdf}
+    \caption{ 
+    \textbf{Overview of TTGS.} From an offline dataset, we sample observations to form graph vertices. We assign edge weights using a distance signal, either derived from a pretrained goal-conditioned value function or from domain-specific knowledge. A shortest-path search with Dijkstra's algorithm yields a sequence of subgoals that guides a frozen policy at test time.}
+    \label{fig:placeholder}
+\end{figure}
+
+
+Goal-conditioned reinforcement learning trains agents to reach user-specified goals and offers a framework for extracting diverse behaviors from large datasets. The goal specification decouples behavior from specific task rewards, which enables reuse across many objectives and facilitates broad data curation without fragile reward engineering \citep{Schaul2015UniversalVF, Andrychowicz2017}. In the offline regime, GCRL can leverage precollected data in domains where online interaction is expensive, time-consuming, or unsafe, such as robotics, healthcare, and autonomous driving \citep{fu2020d4rl, abdellatif2021reinforcement, kumar2020conservative}.
+
+Despite these advantages, long-horizon decision-making remains challenging. Recent evaluations report that methods performing well in moderate-horizon environments struggle in larger spaces, such as complex mazes \citep{ogbench_park2025, sobal2025learning}. To bridge this gap, prior solutions have introduced significant complexity: deploying computationally intensive generative planners \citep{Ajay2023DecisionDiffuser, Luo2025CompDiffuser}, training distributional value function ensembles \citep{Eysenbach2019SoRB}, utilizing specialized geometric representations \citep{gas_baek2025}, or relying on additional data beyond the offline dataset~\citep{emmos2020sparsegraphical}. These methods typically operate on the implicit assumption that standard goal-conditioned value functions are inherently too unreliable or noisy to support long-horizon planning directly.
+
+In contrast, we demonstrate that this additional complexity is often unnecessary. We show that standard goal-conditioned value functions, while prone to global errors, already encode consistent local geometric structure sufficient for long-horizon planning. By processing this signal with a soft-penalty mechanism, we can guide search over dataset states to yield a path where each segment remains within the capabilities of the pretrained frozen policy, without the need for specialized training. We further show that this framework generalizes to domain-specific heuristics, such as Euclidean proximity.
+
+We introduce Test-Time Graph Search (TTGS), a lightweight, training-free planning wrapper that augments frozen GCRL policies. This design targets the common setting where a practitioner has already invested substantial effort in training and tuning a base goal-conditioned agent, but finds that it fails to reliably solve longer-horizon tasks at deployment. TTGS offers a simple way to improve long-horizon performance by reusing the existing policy and its learned value function without changing the training pipeline.
+
+Unlike prior graph-based reinforcement learning methods that focus on training specialized distance functions or pruning data via online interaction \citep{emmos2020sparsegraphical}, TTGS operates entirely at test time. It constructs a graph over the pretraining dataset, assigns edge costs using an existing distance function, and performs a fast shortest-path search to generate a sequence of intermediate subgoals. The adaptive subgoal selection feeds reachable subgoals ahead of the agent to the frozen policy.  We also show that this framework is flexible: while our primary focus is unlocking the latent geometry of value functions, TTGS seamlessly accepts domain-specific heuristics (e.g., Euclidean distance) when available. In both cases, planning over the induced geometry significantly improves trajectory stitching and long-horizon performance without modifying the underlying policy, requiring additional training, or online interaction.
+
+TTGS integrates with existing goal-conditioned learners purely as a test-time procedure. It requires only a distance signal and an offline dataset, adds minimal computational overhead, and preserves the behavior learned by the base policy. The framework complements both hierarchical and non-hierarchical offline GCRL methods by supplying explicit long-horizon search at test time. Since many GCRL algorithms already learn goal-conditioned value functions, the value-derived distance is a natural default that keeps the method simple to adopt.
+
+We make the following contributions:
+\begin{itemize}[leftmargin=*]
+\item \textbf{Re-evaluation of Value Functions for Planning}: We demonstrate that standard offline GCRL value functions, previously considered too unreliable for search, can support robust long-horizon planning when processed with a novel soft-penalty mechanism.
+\item \textbf{Test-Time Graph Search (TTGS)}: We propose a lightweight, training-free framework that augments frozen agents with graph search. Unlike prior graph-based approaches, TTGS is designed to work with existing policies, requiring no additional supervision or online interaction.
+\item \textbf{Performance Improvement With Minimal Overhead}: We show empirically that TTGS improves the performance of state-of-the-art offline GCRL agents (HIQL, QRL, GCIQL, SAW, and OTA) with negligible computational overhead ($<1$ second planning time; see~\Cref{apdx:runtime}). On OGBench long-horizon tasks, TTGS achieves performance competitive with more complex methods that require training or generative planning~\citep{ogbench_park2025, Luo2025CompDiffuser, gas_baek2025}.
+\end{itemize}
+
+\section{Goal-Conditioned Reinforcement Learning Preliminaries}
+Following \citet{ogbench_park2025}, we consider the offline goal-conditioned reinforcement learning (GCRL) problem, defined over a controlled Markov process 
+$\gM = (\gS, \gA, \mu, p)$, i.e, a Markov Decision Process (MDP) without rewards, together with an unlabeled dataset $\gD$ of trajectories.
+Here, $\gS$ is the state space, $\gA$ the action space, $\mu \in \Delta(\gS)$ the initial state distribution, and 
+$p(s' \mid s, a)\colon \gS \times \gA \to \Delta(\gS)$ the transition dynamics. We denote by $\Delta(\gX)$ the space of probability distributions over a set $\gX$.  
+
+The offline dataset $\gD = \{\tau^{(n)}\}_{n=1}^N$ consists of trajectories $\tau^{(n)} = (s_0^{(n)}, a_0^{(n)}, s_1^{(n)}, \dots, s_{T_n}^{(n)})$ collected by some unknown behavior policy.  
+
+The goal in GCRL is to learn a goal-conditioned policy $\pi(a \mid s, g)\colon \gS \times \gS \to \Delta(\gA)$ that can efficiently reach any goal $g \in \gS$ from any starting state $s \in \gS$.  
+Formally, the optimal policy maximizes the expected discounted return:
+\[
+    \max_{\pi} \; \E_{\tau \sim p(s \mid g)}\!\left[\sum_{t=0}^T \gamma^t \, \mathbf{1}\{\|s - g\| < \epsilon\}\right],
+\]
+where $T$ is the horizon, $\gamma \in (0,1)$ the discount factor, $p(\tau \mid g)$ the trajectory distribution induced by $\pi$, and reward is equal to $\mathbf{1}\{\|s - g\| < \epsilon\}$. A common alternative formulation uses  $\mathbf{1}\{\|s - g\| < \epsilon\} \mathbf{- 1}$ reward.
+
+Many GCRL algorithms, including HIQL~\citep{park2024hiqlofflinegoalconditionedrl}, GCIQL~\citep{Kostrikov2022}, and QRL~\citep{tongzhouw2023qrl}, learn a value function 
+$V(s, g)\colon \gS \times \gS \to \mathbb{R}$ representing the expected discounted reward when navigating from state $s$ to goal $g$. 
+
+
+\section{Method}
+\begin{figure*}[!t]
+    \centering
+    \begin{subfigure}[t]{0.48\linewidth}
+        \includegraphics[width=\linewidth]{plots/base_overlay.pdf}
+        \caption{Rollouts from HIQL fail to reach a distant goal.}
+        \label{fig:base_fails}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.48\linewidth}
+        \includegraphics[width=\linewidth]{plots/ttgs_overlay.pdf}
+        \caption{TTGS selects reachable subgoals on a guiding path.}
+        \label{fig:ttgs_intuition}
+    \end{subfigure} 
+    \begin{subfigure}[t]{0.99\linewidth}
+        \includegraphics[width=\linewidth, trim=0 10mm 0 30mm,clip]{plots/dist_eval.pdf}
+        \caption{Success rate of reaching goals sampled from the expert trajectory and located $n$ steps away from the agent within $1.5n$ step budget in \texttt{antmaze-giant-stitch-v0} environment. }
+        \label{fig:base_over_distance}
+    \end{subfigure}
+    \caption{\textbf{Motivation for TTGS:} \textbf{(a)} HIQL policy fails to reach a distant goal on \texttt{antmaze-giant-stitch-v0}, with multiple attempts failing to exit the starting area and two attempts running out of time due to inefficient path. \textbf{(b)} TTGS finds a guiding path using dataset observations. On each step it selects a subgoal which is within a predefined radius from the agent. We mark all data points on the guiding path in gray, and the actual path traversed by the agent in blue. \textbf{(c)} Different agents' policy performance decreases as steps required to reach the goal increase. By providing a policy with close subgoals, TTGS improves reliability and efficiency of reaching the goal. }
+    \label{fig:motivation}
+\end{figure*}
+
+
+We visualize the core challenge that GCRL agents face in \autoref{fig:motivation}.
+In long, complex tasks like maze navigation, agents that attempt to reach far-away goals can get stuck or run off course.
+However, for shorter horizons, they tend to be reliable.
+From this observation, we derive the simple key idea behind TTGS: rather than asking a policy to solve a long-horizon task in one shot, we decompose it into short, reliable hops. 
+We do so by equipping test-time planning with a distance signal over states, selecting a compact set of states from an offline dataset, and connecting them into a graph whose edges reflect predicted step costs. At test time, we plan in this graph by computing a shortest path between the start and the goal, then feed the policy a small number of intermediate subgoals along this path. As summarized in \autoref{fig:ttgs_intuition}, the agent queries all points along the shortest path that are within a certain threshold from the current state, and picks the closest to the goal.
+
+While the framework supports any compatible distance, our primary focus is the general and widely applicable case where the distance is derived from a learned goal-conditioned value function. The following sections describe how distances are calibrated (\Cref{subsec:distance}), how the graph is constructed (\Cref{subsec:graph}), and how subgoal-based planning is executed at test time (\Cref{subsec:subgoal}).
+
+\subsection{Distance Prediction}
+\label{subsec:distance}
+
+The algorithm begins by obtaining a distance predictor from an available (approximate) metric on the state space.
+In general, this can be any metric, here we focus on deriving approximate metrics from value function estimates.
+Note that in general these predictors do not fulfill the formal criteria for metrics, e.g. they might not obey the triangle inequality or be symmetric. However, we find them to be reliable for local reachability (i.e., within a short horizon), even if global long-horizon estimates are noisy, as supported by the effectiveness of TTGS in chaining these local estimates.
+
+\paragraph{Value-derived distance (default).}
+To enable policy-agnostic planning, we map a goal-conditioned value signal $V(s,g)$ to an expected step distance
+\[
+    \hat d(s, g) = f\big(V(s, g)\big),
+\]
+where $f:\mathbb{R}\to\mathbb{R}_{\ge 0}$ converts values into an estimate of the environment steps required to reach $g$ from $s$. For the following, common reward conventions, $f$ admits a closed form:
+\begin{itemize}[leftmargin=*]
+    \item \emph{Sparse terminal reward.} Reward $1$ only at the goal and $0$ otherwise. Then $V^*(s,g)=\gamma^{d}$, where $d$ is the shortest-step distance, giving
+\[
+    \hat d(s,g)=\log_{\gamma} V^*(s,g).
+\]
+\item \emph{Per-step penalty.} Reward $-1$ until reaching the goal and $0$ at the goal. Then
+\begin{align*}
+    V^*(s,g)&=-\sum_{t=0}^{d-1}\gamma^{t}= -\frac{1-\gamma^{d}}{1-\gamma} \\
+    \quad\Rightarrow\quad&
+    \hat d(s,g)=\log_{\gamma}\!\big(1+(1-\gamma)\,V^*(s,g)\big).
+\end{align*}
+HIQL, SAW and GCIQL use this convention in our experiments. 
+\end{itemize}
+More generally, any value signal that is monotone with respect to reachability suffices. We clip $\hat d$ to avoid negative or infinite outputs. Exact mappings for each base agent are provided in \autoref{apdx:value_distance}.
+
+\paragraph{Domain-specific distances.}
+When a task supplies a meaningful geometric or kinematic metric, we can use it directly as $\hat d$. This requires no changes to the pipeline below; only the source of edge costs differs. Our experiments include such a domain-specific metric to illustrate the flexibility of the framework.
+
+
+\subsection{Graph Construction}\label{subsec:graph} 
+Using the distance predictor, the agent now proceeds to build the underlying graph of distances from the pretraining dataset.
+This graph is goal-agnostic, which means it can be reused for different goals an agent might want to achieve in the environment.
+
+\paragraph{Vertices selection}
+Computing all pairwise distances among $N$ states in $\gD$ has $O(N^2)$ complexity and may require repeated neural network evaluations, which is prohibitive at scale. We instead sample a compact subset $\mathcal{V}=\{v_i\}_{i=1}^M\subset\gD$ and build the graph on $\mathcal{V}$. Uniform random sampling worked well in our experiments. We also tested clustering inspired by \citet{gas_baek2025} (see \autoref{apdx:data_filtering} for details), but it did not produce a statistically significant gain over random sampling, so we adopt random sampling for simplicity.
+
+\paragraph{Weights derivation} We build a directed, weighted graph $G=(\mathcal{V},E,\tilde w)$. Using the distance predictor $\hat d$, we compute a matrix $D\in\mathbb{R}^{M\times M}$ with entries $D_{ij}=\hat d(v_i,v_j)$ using batched evaluations for efficiency. Because distance predictors can overestimate connectivity across gaps (creating ``wormholes''), minimizing raw distance often yields infeasible paths. Conversely, enforcing a hard distance limit risks fragmenting the graph (see \autoref{apdx:hard_vs_soft}). To balance these issues, we assign edge weights $\tilde w_{ij}$ using a superlinear penalty $p(\cdot)$ for transitions exceeding a trust region $\tau$:
+\[
+\tilde w_{ij} =
+\begin{cases}
+D_{ij}, & i \ne j,\; D_{ij}<\tau,\\[4pt]
+p(D_{ij}), & i \ne j,\; D_{ij}\ge \tau,\\[4pt]
++\infty, & i=j.
+\end{cases}
+\]
+Self-loops are removed to avoid unnecessary computations. In experiments we use $p(x)=x\cdot1000^{x / \tau}$. This penalty preserves local metric structure below $\tau$ while steering the planner toward chains of short, trustworthy hops, utilizing longer edges only when no safer path exists.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\linewidth]{plots/ttgs_bars_withota.pdf}
+  \caption{\textbf{Goal-reaching success rates for QRL, GCIQL, HIQL, SAW and OTA with and without TTGS.} Distances are predicted from each base agent’s learned value function. TTGS improves performance on the majority of locomotion tasks that require trajectory stitching. Full results are presented in \Cref{tab:env_multi_agent_rowwise}.}
+  \label{fig:ttgs_bars}
+\end{figure*}
+
+\begin{algorithm}[t]
+\caption{TTGS: Subgoal Selection and Execution}
+\label{alg:ttgs}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G=(\mathcal{V},E,\tilde w)$ where $\mathcal{V}=\{v_i\}_{i=1}^M$ are selected states; distance $\hat d$; frozen policy $\pi$; start state $s_0$; goal $g$; step budget $T$
+\STATE \COMMENT{Precompute guide path once per episode}
+\STATE $v_s \gets \arg\min_{v_i} \hat d(s_0, v_i)$,\quad $v_g \gets \arg\min_{v_i} \hat d(v_i, g)$
+\STATE $(p_0,\dots,p_L) \gets \textsc{Dijkstra}(G, v_s, v_g)$
+\STATE $k_{\text{prev}} \gets 0$;\quad $s_{\text{cur}} \gets s_0$
+\WHILE{$g$ not reached}
+  \STATE $\delta_\ell \gets \hat d(s_{\text{cur}}, p_\ell)$ for $\ell=0,\dots,L$;\quad $\delta_g \gets \hat d(s_{\text{cur}}, g)$
+  \STATE $k \gets \arg\min_\ell \delta_\ell$;\quad $k \gets \max(k,\,k_{\text{prev}})$ \COMMENT{index of the closest waypoint ahead}
+  \IF{$\delta_g \le T$}
+     \STATE $\tilde g \gets g$  \COMMENT{goal is within reach}
+  \ELSE
+     \STATE $\mathcal{C} \gets \{\ell > k : \delta_\ell \le T\}$ \COMMENT{reachable subgoal candidates}
+     \IF{$\mathcal{C} \neq \varnothing$}
+        \STATE $\tilde g \gets p_{\max\mathcal{C}}$ \COMMENT{take farthest reachable}
+     \ELSE
+        \STATE $\tilde g \gets p_{\min\{k+1,\,L\}}$ \COMMENT{take next subgoal}
+     \ENDIF
+  \ENDIF
+  \STATE Sample $a \sim \pi(\cdot \mid s_{\text{cur}}, \tilde g)$ and execute.
+  \STATE $s_{\text{cur}} \gets$ next observed state;\quad $k_{\text{prev}} \gets k$
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Subgoal Selection and Action Sampling}
+\label{subsec:subgoal}
+
+To find the path to a given goal, the agent proceeds in two steps based on the pre-computed graph.
+
+\paragraph{Shortest-path precomputation.}
+At test time, given a start state $s_0$ and a goal $g$, we compute a guide path on $G$ using Dijkstra’s algorithm. We first locate the nearest vertices under $\hat d$,
+\[
+    v_s=\arg\min_{v_i} \hat d(s_0, v_i),
+    \qquad
+    v_g=\arg\min_{v_i} \hat d(v_i, g),
+\]
+then obtain $(p_0,\dots,p_L)=\textsc{Dijkstra}(G,v_s,v_g)$. The guide path is computed once per episode and reused throughout execution. Using a fast GPU-based implementation of Dijkstra’s algorithm keeps the overhead minimal.
+
+\paragraph{Adaptive subgoal selection.}
+During execution, the agent selects subgoals from $(p_0,\dots,p_L)$ using a step budget $T$. If the current state $s_{\text{cur}}$ is within $T$ steps of $g$ according to $\hat d$, the subgoal is set to $g$. Otherwise, the agent identifies the closest waypoint to the current state and updates a progress index $k$ to ensure monotonicity, prohibiting the reference point from moving backward (i.e., $k \leftarrow \max(k, k_{\text{prev}})$). It then chooses the farthest waypoint $p_j$ with index $j \ge k$ that is within budget, $\hat d(s_{\text{cur}}, p_j)<T$. If no such waypoint exists, the next waypoint along the path is chosen to ensure forward progress. The frozen goal-conditioned policy $\pi$ is then invoked with current state and selected subgoal. The pseudocode is provided in \autoref{alg:ttgs}.
+
+\section{Experiments}
+
+We evaluate TTGS on OGBench~\citep{ogbench_park2025} using three strong offline GCRL baselines provided by the benchmark: QRL, GCIQL, and HIQL~\citep{tongzhouw2023qrl,park2024hiqlofflinegoalconditionedrl}. Additionally, we include SAW~\citep{zhou2025flattening} and OTA~\citep{ota2025} to broaden the evaluation. For each dataset, we compare the success rate of the frozen base policy with and without TTGS across five tasks. Every task is evaluated with 50 rollouts, and we report the mean and standard deviation over eight random seeds. In tables, methods within 95\% of the best mean are bolded, and cases where TTGS exceeds its corresponding base learner are underlined. All base agents are trained with the public OGBench code using default hyperparameters, and TTGS is applied post hoc without any changes to training.
+
+\paragraph{Datasets}
+OGBench provides offline datasets for GCRL, including locomotion domains that test long-horizon and hierarchical reasoning~\citep{ogbench_park2025}. We use \texttt{pointmaze}, \texttt{antmaze}, and \texttt{humanoidmaze} with \texttt{medium}, \texttt{large}, and \texttt{giant} mazes and three data-collection regimes: \texttt{navigate} uses a noisy expert reaching random goals, \texttt{stitch} consists of short trajectories that require trajectory stitching, and \texttt{explore} contains random exploratory rollouts (available only for \texttt{antmaze}). For \texttt{antmaze} and \texttt{humanoidmaze}, \texttt{visual} variants with pixel-based observations are also available.
+
+
+
+\begin{table*}[t!]
+    \centering
+    \small
+    \setlength{\tabcolsep}{6pt}
+    \caption{\textbf{HIQL+TTGS on state-based datasets using value-derived and position-based ($L_2$) distances}. The simple Euclidean distance between body positions, normalized by the average dataset step length, is often sufficient to yield strong gains.}
+    \label{tab:l2_distance}
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lrrr}
+      \toprule
+      \textbf{Dataset} & HIQL & HIQL+TTGS-value & HIQL+TTGS-$L_2$
+      \\
+      \toprule
+      \texttt{pointmaze-giant-navigate-v0}
+        & 43.0 ± 10.5 & \underline{\textbf{70.9 ± 12.2}} & \underline{\textbf{70.0 ± 9.3}}\\
+    \texttt{pointmaze-giant-stitch-v0}
+        & 0.0 ± 0.0 & \underline{\textbf{80.9 ± 9.0}} & \underline{\textbf{83.0 ± 7.8}}\\
+    \texttt{antmaze-giant-navigate-v0}
+        & \textbf{65.0 ± 4.1} & \underline{\textbf{65.8 ± 4.0}} & 60.8 ± 4.3 \\
+      \texttt{antmaze-giant-stitch-v0}
+        & 1.4 ± 1.1 & \underline{\textbf{78.6 ± 13.4}} & \underline{60.2 ± 12.0} \\
+    \texttt{antmaze-large-explore-v0}
+        & 2.4 ± 4.4 & \underline{\textbf{26.6 ± 34.0}} & \underline{18.8 ± 23.8} \\
+    \texttt{humanoidmaze-giant-navigate-v0}
+        & 16.0 ± 8.6 & \underline{\textbf{85.3 ± 6.1}} & \underline{74.2 ± 17.5} \\
+    \texttt{humanoidmaze-giant-stitch-v0}
+        & 4.4 ± 1.3 & \underline{\textbf{78.1 ± 5.1}} & \underline{72.6 ± 5.7} \\
+    \bottomrule
+    \end{tabular*}
+    % \vskip -0.1in
+\end{table*}
+
+
+\begin{figure*}[t!]
+  \centering
+  % Left: ablations
+  \begin{subfigure}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{plots/ttgs_ablt_bars.pdf}
+    \caption{Ablations of HIQL+TTGS-value.}
+    \label{fig:ablt}
+  \end{subfigure}
+  \hfill
+  % Right: edge-threshold
+  \begin{subfigure}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{plots/qrl_compare_tau.pdf}
+    \caption{Effect of the threshold $\tau$ and predicted distances.}
+    \label{fig:edgethresh}
+  \end{subfigure}
+  \caption{ \textbf{Ablations and hyperparameters.} \textbf{(a)} Comparison of full TTGS using HIQL as base learner and value-derived distances with three ablations: \emph{Next Subgoal} replaces our subgoal selection procedure with always picking the immediate next waypoint, \emph{No-Penalty} uses raw predicted distances, and \emph{Hard-Threshold} removes edges with cost $>\tau$. TTGS outperforms both ablations across datasets. \textbf{(b)} Effect of penalty threshold $\tau$ on the guide path and a value-derived distance field. Colors denote predicted distances from each dataset observation to the goal in top-right corner. Smaller $\tau$ yields denser subgoals and less direct paths. Larger $\tau$ permits longer hops that can require navigating around obstacles, which is harder for the frozen policy.}
+\end{figure*}
+
+
+\subsection{Main Results}
+
+
+\autoref{fig:ttgs_bars} summarizes results on the largest stitching tasks, which are challenging for existing agents. TTGS uses distances derived from the base agent’s value function, so it relies only on information available at test time. TTGS generally improves or maintains success across evaluated environments, with the largest gains on \texttt{giant} layouts where one-shot execution is difficult. On \texttt{pointmaze-giant-stitch-v0}, TTGS raises HIQL from 0.0\% to 80.9\% and GCIQL from 0.0\% to 98.0\%. On \texttt{humanoidmaze-giant-stitch-v0}, HIQL is improved from 4.4\% to 78.1\%. These cases highlight how sequences of short, reliable hops help frozen policies traverse large mazes that require stitching behaviors from disparate parts of the dataset. Notably, TTGS boosts even HIQL, SAW, and OTA which already include a learned high-level controller, suggesting that explicit planning can provide more reliable subgoals than a purely learned subgoal policy in long-horizon settings. We further observe improvements on several pixel-based tasks, indicating that value-derived distances can offer a strong planning signal even when domain-specific metrics are difficult to define. While \autoref{fig:ttgs_bars} highlights the hardest \texttt{stitch} tasks, we provide comprehensive results for all evaluated environments, including \texttt{medium}, \texttt{large}, and \texttt{giant} mazes across \texttt{stitch}, \texttt{navigate}, and \texttt{explore} settings, in \autoref{tab:env_multi_agent_rowwise} of \autoref{apdx:full_results}. We further analyze the applicability of TTGS to manipulation tasks in \autoref{apdx:manipulation}, finding that the method behaves robustly even when value landscapes are sparse.
+
+To test the generality of TTGS beyond value-based distances, we also evaluate a simple domain-specific distance based on body position. This metric uses the Euclidean distance between agent body positions normalized by the average step length in the dataset. Although it ignores walls, joint configuration and contact dynamics, this signal is sufficient to unlock substantial gains when combined with TTGS. \autoref{tab:l2_distance} reports that HIQL+TTGS with this metric improves performance across most state-based environments, which supports the claim that TTGS can exploit a variety of compatible distances when a value function is unavailable.
+
+\subsection{Ablation Study}
+
+We study two design choices: adaptive subgoal selection and the edge-length penalty introduced during graph construction. We also examine sensitivity to the distance penalty threshold $\tau$ and the subgoal selection threshold $T$.
+
+\begin{table*}[t]
+    \centering
+    \small
+    \setlength{\tabcolsep}{6pt}
+    \caption{\textbf{TTGS consistently boosts HIQL on long-horizon stitch tasks.} Success rate for HIQL with and without the TTGS on \texttt{giant-stitch} tasks as we vary $\tau$ and $T$. }
+    \label{tab:giant_stitch_hparam_hiql}
+    \begin{tabular*}{0.8\linewidth}{@{\extracolsep{\fill}}lcrrr}
+      \toprule
+      \textbf{Dataset} & \textbf{$\tau$} & $T$ & \textbf{HIQL} & \textbf{HIQL+TTGS} \\
+      \midrule
+      \multirow{5}{*}{\texttt{pointmaze-giant-stitch-v0}}
+        & 12 & 24 & \multirow{5}{*}{0.0 ± 0.0 } & \underline{\textbf{78.4 ± 10.3}} \\
+        & 24 & 24 & & \underline{57.2 ± 12.7}\\
+        & 24 & 48 & & \underline{\textbf{80.9 ± 9.0}} \\
+        & 24 & 96 & & \underline{62.6 ± 16.7} \\
+        & 48 & 96 & & \underline{52.0 ± 20.0} \\
+    \midrule
+      \multirow{5}{*}{\texttt{antmaze-giant-stitch-v0}}
+        & 12 & 24 & \multirow{5}{*}{ 1.4 ± 1.1 } & \underline{\textbf{78.6 ± 13.4}} \\
+        & 24 & 24 & & \underline{40.9 ± 14.6} \\
+        & 24 & 48 & & \underline{19.0 ± 9.2} \\
+        & 24 & 96 & & \underline{2.2 ± 1.6} \\
+        & 48 & 96 & & 1.1 ± 1.5 \\
+      \midrule
+      \multirow{5}{*}{\texttt{humanoidmaze-giant-stitch-v0}}
+        & 12 & 24 & \multirow{5}{*}{4.4 ± 1.3} & \underline{52.2 ± 6.1} \\
+        & 24 & 24 & & \underline{65.5 ± 12.0} \\
+        & 24 & 48 & & \underline{\textbf{78.1 ± 5.1}} \\
+        & 24 & 96 & & \underline{\textbf{79.8 ± 7.7}} \\
+        & 48 & 96 & & \underline{\textbf{76.8 ± 9.7}} \\
+      \bottomrule
+    \end{tabular*}
+    \vskip -0.1in
+\end{table*}
+
+\paragraph{Subgoal selection.}
+Our default procedure selects the farthest waypoint on the precomputed route whose predicted distance from the current state is below a threshold $T$, falling back to the next waypoint after the closest node when no such waypoint exists. The alternative always commits to the immediate next waypoint. \autoref{fig:ablt} shows that this simpler strategy degrades performance, especially on \texttt{pointmaze-giant}, while the adaptive rule yields robust improvements. We hypothesize that aiming at the farthest reachable waypoint reduces unnecessary micromanagement of local motion and promotes efficient progress toward reachable, yet sufficiently distant, subgoals.
+
+\paragraph{Distance penalty.}
+We compare the dynamic soft penalty from \Cref{subsec:graph} to a \emph{No-Penalty} variant (raw distances) and a \emph{Hard-Threshold} variant (removing edges $>\tau$). \autoref{fig:ablt} shows that on stitching tasks, the soft penalty significantly outperforms the no-penalty baseline. Furthermore, as detailed in \autoref{apdx:hard_vs_soft}, a hard threshold fails on these tasks because noisy value estimates frequently cause graph disconnections. The soft penalty maintains connectivity by assigning high costs to optimistic edges rather than removing them, allowing the planner to recover from local value function errors.
+
+\paragraph{Hyperparameters.}\label{subsec:hyperparams}
+
+We sweep the edge threshold $\tau$ and the subgoal threshold $T$. \Cref{tab:giant_stitch_hparam_hiql} reports HIQL results on the three largest state-based mazes. TTGS outperforms the base policy or preserves performance across all tested settings, with a moderate penalty threshold and a subgoal selection threshold near $T = 2\tau$ generally working best. Small $\tau$ values bias the planner toward long chains of short hops, which can lengthen routes and reduce straight-line progress, whereas large $\tau$ values admit long edges that the policy may fail to traverse. Crucially, this trade-off is interpretable without online interaction: $\tau$ can be selected by analyzing the suggested shortest paths to identify infeasible shortcuts or excessive path fragmentation. In an online setting, tuning is further simplified by the method's training-free nature, which allows for fast iteration.
+
+\paragraph{Replanning.} We also investigate the effect of online replanning in \autoref{apdx:replan}. We find that the initial guide path is generally robust, and frequent replanning typically offers limited benefit.
+
+Finally, \autoref{fig:edgethresh} visualizes the value-derived distance field together with guide paths produced by TTGS. The distances obtained from the value function reflect the environment’s structure, with obstacles forming high-cost barriers and corridors forming low-cost channels. As the edge threshold $\tau$ decreases, the planner trusts only short edges and yields denser routes with more subgoals; as $\tau$ increases, longer edges are permitted, producing sparser but potentially less reliable paths.
+
+\section{Related Work}
+Offline goal-conditioned reinforcement learning (GCRL) aims to learn multi-task policies from fixed datasets. A key challenge is to infer reliable goal-conditioned values from imperfect data. Prior approaches stabilize value estimation with expectile regression \citep{Kostrikov2022, park2024hiqlofflinegoalconditionedrl}, treat values as quasi-metric distances \citep{tongzhouw2023qrl}, couple representation learning with one-step improvement via contrastive objectives \citep{Eysenbach2022, Zheng2024}, incorporate temporal abstraction into value learning \citep{ota2025}, or impose physics-informed regularization derived from the Eikonal equation \citep{giammarino2025physicsinformed}. These methods perform well on moderate horizons but often fail on tasks that require trajectory stitching. TTGS is designed to complement them by supplying test-time planning to improve their long-horizon performance.
+
+Graph-based methods have also been explored in GCRL. Some use graph search to prune suboptimal actions from datasets \citep{yin2024offlineimitationlearninggraph}, while others construct graphs from episodes in a learned metric space and apply reinforcement learning over the graph \citep{zhu2023valuememorygraphgraphstructured}. Several works focus on learning more accurate distance estimators, including temporal distance representations \citep{gas_baek2025}, ensembles of distributional value functions \citep{Eysenbach2019SoRB}, Siamese proximity predictors \citep{savinov2018semiparametrictopologicalmemorynavigation}, or latent landmarks \citep{zhang2021worldmodelgraphlearning}. Some approaches estimate distances via value functions but require online refinement to prune infeasible edges \citep{emmos2020sparsegraphical}. Unlike prior graph search approaches, TTGS requires no training, it treats pretrained policies and distance estimators as black boxes and operates entirely offline.  We show that instead of using specialized training or online pruning, applying a simple soft threshold and subgoal selection on top of standard pretrained agents is sufficient to gain the benefits of graph search.
+
+Beyond graph search, several planning paradigms have been proposed. Diffusion and generative models compose or augment trajectories for long-horizon planning\citep{Janner2022Diffuser, Ajay2023DecisionDiffuser, Luo2025CompDiffuser, Zhang2025InferenceScaling, Lee2025SCoTS}, though they typically demand extra training and computation. Model-based planning uses learned dynamics for model-predictive control \citep{Williams2017MPPI, Chua2018PETS, Hafner2019PlaNet, Hansen2022TDMPC} or sequence-model planning with trajectory transformers \citep{Janner2021TrajectoryTransformer}. TTGS differs by providing fast ($<1$s planning time), training-free retrieval of the dataset states, which can complement generative and model-based methods by providing reliable subgoals.
+
+\section{Limitations}
+TTGS introduces some computational overhead, although it remains modest. Graph construction is performed once per dataset and requires roughly 35 to 100 seconds on a single Nvidia L40s GPU with 8 virtual CPU cores, depending on the domain. At test time, computing a shortest path is required once per episode and typically takes less than one second, which is competitive with existing planning methods. During execution, action selection adds $\approx 1.5$ms overhead per step. We provide a detailed runtime breakdown in \autoref{apdx:runtime}. In practice, these costs are minor compared to the performance gains, and the absence of additional training allows practitioners to iterate quickly.
+
+The effectiveness of TTGS depends on the base learner. The framework assumes that the policy can reliably reach nearby subgoals, and its performance is influenced by both the accuracy of the distance estimator and the coverage of states in the offline dataset. In some environments we observe substantial improvements from near-zero baselines, but in others the base policies are too unreliable to follow subgoal chains effectively.
+
+We also find that the geometry of the data manifold is critical. In manipulation tasks, where our results are consistent but modest (see \autoref{apdx:manipulation}), evaluation goals often lie outside the main training distribution. As illustrated in \autoref{fig:manip_viz}, this creates a gap in the manifold where no intermediate states exist to support planning. In such sparse or disconnected settings, TTGS naturally defaults to the base policy's behavior rather than hallucinating invalid paths. Unlike generative planners which may synthesize physically impossible trajectories, TTGS is conservative by design, relying only on retrieved dataset states.
+
+Finally, the effectiveness of TTGS relies on the quality of the underlying distance estimates. When goal-conditioned value functions provide noisy or inconsistent signals, TTGS may struggle to produce useful guidance, though we note that in such regimes the base learners typically perform poorly as well. Furthermore, TTGS may select  subgoals that are suboptimal when dataset coverage is limited or distance predictions are inaccurate. Future work could explore combining multiple noisy distance estimates to obtain more robust edge weights, as well as developing more sophisticated strategies for selecting representative states as graph vertices.
+
+\section{Conclusion}
+We introduced Test-Time Graph Search (TTGS), a lightweight planning framework that augments pretrained goal-conditioned reinforcement learning agents. TTGS leverages only the offline dataset and a distance signal to construct a graph, then applies efficient search to generate subgoal sequences for a frozen policy. This approach requires no retraining, no additional supervision, and no online interaction, yet substantially improves long-horizon performance across diverse tasks.  
+
+Our study highlights a key reason why value-based GCRL agents struggle on long-horizon problems: their policies fail to exploit the geometric structure already captured by goal-conditioned value functions. By reinterpreting these value functions as distances and planning over dataset states, TTGS shows that the same policies can achieve significantly stronger performance.  
+
+Experiments on OGBench confirm that TTGS consistently enhances the reliability of existing agents, enabling them to solve challenging long-horizon problems that are otherwise difficult with one-shot execution. The method is effective with both value-derived distances and domain-specific metrics, underscoring its flexibility and broad applicability.  
+
+By turning offline datasets into a substrate for planning at test time, TTGS provides a practical way to extend the capabilities of goal-conditioned learners without modifying their training pipelines. We hope this perspective inspires further exploration of simple, modular planning strategies that complement learning-based agents and increase their reliability and long-horizon performance.  
+
+\section*{Impact Statement}
+This paper presents work whose goal is to advance the field of Machine Learning. There are many potential societal consequences of our work, none which we feel must be specifically highlighted here.
+\newpage
+% \section*{Reproducibility statement}
+% We provide a detailed description of the algorithm in \autoref{alg:ttgs}. All hyperparameters are listed in \autoref{apdx:res_design}. The code for TTGS is provided in supplementary material and will be open-sourced upon acceptance.
+
+% \subsubsection*{Author Contributions}
+% If you'd like to, you may include  a section for author contributions as is done
+% in many journals. This is optional and at the discretion of the authors.
+
+% \subsubsection*{Acknowledgments}
+% Use unnumbered third level headings for the acknowledgments. All
+% acknowledgments, including those to funding agencies, go at the end of the paper.
+
+\bibliography{main}
+\bibliographystyle{icml2026}
+\newpage
+\appendix
+\onecolumn
+\section{Full Results} \label{apdx:full_results}
+
+\paragraph{Scope.}
+We present results for TTGS paired with HIQL~\citep{park2024hiqlofflinegoalconditionedrl}, GCIQL~\citep{Kostrikov2022}, QRL~\citep{tongzhouw2023qrl}, SAW~\citep{zhou2025flattening}, and OTA~\citep{ota2025} in \autoref{tab:env_multi_agent_rowwise}. We compare against each base learner and two planning methods: GAS~\citep{gas_baek2025} and CompDiffuser (CD)~\citep{Luo2025CompDiffuser}. This comparison is not apples-to-apples: our TTGS results use only the offline pretraining dataset and frozen base agent components, while GAS and CD include additional learned modules and training. We use value-derived distances for TTGS in this comparison. Results are summarized in \autoref{tab:env_multi_agent_rowwise}. 
+
+\paragraph{Setting differences.}
+TTGS operates in a \emph{more constrained} setting than both GAS and CompDiffuser: we perform no additional training and use only the offline pretraining dataset along with the pretrained goal-conditioned value function and frozen policy of each base learner. By contrast, GAS trains a Temporal Distance Representation (TDR) and leverages it to train a low-level controller with subgoal supervision, while CompDiffuser trains a diffusion model to synthesize long-horizon trajectories. These differences mean TTGS adds purely test-time computation, whereas GAS and CD introduce extra learned components, while also requiring planning at test time.
+
+\begin{table}[ht]
+\centering
+\caption{\textbf{Success rates (\%) across datasets.} We report base learners, their TTGS-augmented counterparts, and other planning agents where available. “/” indicates the metric was not reported in the corresponding paper. Means and standard deviations follow the OGBench protocol (50 rollouts per task; averages and s.d. over 8 seeds).}
+\label{tab:env_multi_agent_rowwise}
+\tiny
+\setlength{\tabcolsep}{1.4pt}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l 
+    r r  % HIQL
+    r r  % GCIQL
+    r r  % QRL
+    r r  % SAW
+    r r  % OTA
+    r    % GAS
+    r    % CompDiffuser
+}
+\toprule
+\textbf{Dataset} & \textbf{\makecell{HIQL}} & \textbf{\makecell{HIQL\\+TTGS}}
+& \textbf{\makecell{GCIQL}} & \textbf{\makecell{GCIQL\\+TTGS}}
+& \textbf{\makecell{QRL}} & \textbf{\makecell{QRL\\+TTGS}}
+& \textbf{\makecell{SAW}} & \textbf{\makecell{SAW\\+TTGS}}
+& \textbf{\makecell{OTA}} & \textbf{\makecell{OTA\\+TTGS}}
+& \textbf{\makecell{GAS}} & \textbf{\makecell{CD}} \\
+\midrule
+pointmaze-medium-navigate-v0
+  & 73.6 ± 4.4          & \underline{85.8 ± 5.2}
+  & 51.5 ± 8.2          & \underline{90.9 ± 3.7}
+  & 83.5 ± 3.2          & \underline{\textbf{98.4 ± 3.4}}
+  & \textbf{96.8 ± 1.8} & \textbf{96.8 ± 1.9} 
+  & 80.8 ± 3.1   & \underline{92.4 ± 3.6}
+  & / & / \\
+pointmaze-medium-stitch-v0
+  & 73.0 ± 10.2         & \underline{80.5 ± 20.3}
+  & 18.2 ± 8.9          & \underline{44.0 ± 8.0}
+  & 76.0 ± 8.9          & \underline{93.4 ± 6.8}
+  & 68.2 ± 7.6          & \underline{85.4 ± 6.1} 
+  & 60.6 ± 11.2         & \underline{81.0 ± 8.7}
+  & / & \textbf{100 ± 0} \\
+  pointmaze-large-navigate-v0
+  & 45.2 ± 14.0         & \underline{78.0 ± 9.7}
+  & 32.2 ± 5.8          & \underline{\textbf{88.1 ± 9.4}}
+  & 82.4 ± 5.7          & \underline{\textbf{92.0 ± 9.7}}
+  & 78.0 ± 10.8         & \underline{83.6 ± 6.4} 
+  & 85.1 ± 5.7          & \underline{\textbf{87.7 ± 6.6}}
+  & / & / \\
+pointmaze-large-stitch-v0
+  & 13.2 ± 8.0          & \underline{92.2 ± 5.1}
+  & 29.0 ± 5.0          & 29.0 ± 2.2
+  & 88.8 ± 14.0         & \underline{93.9 ± 8.7}
+  & 41.2 ± 6.7          & \underline{93.2 ± 6.1} 
+  & 64.0 ± 14.3         & \underline{69.8 ± 18.5}
+  & / & \textbf{100 ± 0} \\
+pointmaze-giant-navigate-v0  
+& 43.0 ± 10.5 & \underline{70.9 ± 12.2} 
+& 0.0 ± 0.0 & \underline{\textbf{91.9 ± 3.0}} 
+& 65.3 ± 10.2 & \underline{88.1 ± 9.5} 
+& 68.5 ± 6.4 & \textbf{\underline{94.8 ± 2.8}} 
+& 67.2 ± 9.8  & \underline{73.6 ± 7.1}
+& / & / \\
+pointmaze-giant-stitch-v0    
+& 0.0 ± 0.0   & \underline{80.9 ± 9.0} 
+& 0.0 ± 0.0 & \underline{\textbf{98.0 ± 1.4}} 
+& 55.3 ± 12.0 & \underline{\textbf{93.2 ± 7.7}} 
+& 6.8 ± 7.9 & \underline{82.3 ± 13.6} 
+& 42.9 ± 9.6 & \underline{86.8 ± 5.5}
+& / & 68 ± 3 \\
+\midrule
+antmaze-medium-navigate-v0
+  & \textbf{95.2 ± 0.7} & \textbf{95.2 ± 1.3}
+  & 72.3 ± 4.7          & \underline{81.1 ± 4.7}
+  & 81.9 ± 10.6         & \underline{83.9 ± 7.8}
+  & \textbf{96.3 ± 1.6} & \textbf{95.7 ± 1.7} 
+  & \textbf{95.6 ± 1.5} & \textbf{95.6 ± 1.5}
+  & \textbf{96.3 ± 1.3} & / \\
+antmaze-medium-stitch-v0
+  & 92.9 ± 2.1 & \underline{\textbf{95.4 ± 1.3}}
+  & 29.5 ± 4.7          & \underline{53.0 ± 8.7}
+  & 62.0 ± 9.4          & 40.1 ± 9.4
+  & 64.0 ± 5.0          & \underline{\textbf{94.0 ± 1.9}} 
+  & 88.5 ± 2.7          & \underline{91.1 ± 3.2}
+  & \textbf{98.1 ± 1.2} & \textbf{96 ± 2} \\
+antmaze-large-navigate-v0
+  & \textbf{90.6 ± 2.5} & \underline{\textbf{92.3 ± 2.3}}
+  & 35.8 ± 2.7          & \underline{57.2 ± 3.8}
+  & 74.0 ± 4.3          & \underline{77.0 ± 3.3}
+  & \textbf{88.8 ± 2.5} & \underline{\textbf{89.6 ± 1.7}} 
+  & \textbf{91.4 ± 1.0 }         & \underline{\textbf{91.6 ± 1.4}}
+  & \textbf{93.2 ± 0.5} & / \\
+antmaze-large-stitch-v0
+  & 73.0 ± 6.0          & \underline{90.8 ± 2.3}
+  & 7.0 ± 2.5           & \underline{30.6 ± 4.6}
+  & 21.0 ± 4.1          & \underline{43.5 ± 10.5}
+  & 3.1 ± 4.8           & \underline{86.2 ± 3.7} 
+  & 85.4 ± 3.8          & \underline{91.4 ± 1.5}
+  & \textbf{96.3 ± 0.9} & 86 ± 2 \\
+antmaze-giant-navigate-v0    
+& 65.0 ± 4.1  & \underline{65.8 ± 4.0} 
+& 0.4 ± 0.2 & \underline{5.4 ± 2.4}           
+& 11.8 ± 5.2  & 10.8 ± 4.8                   
+& 68.5 ± 3.0 & \underline{71.0 ± 5.3} 
+& 67.4 ± 6.1     & \underline{68.5 ± 4.1}
+& \textbf{76.0 ± 5.9} & / \\
+antmaze-giant-stitch-v0      
+& 1.4 ± 1.1   & \underline{78.6 ± 13.4} 
+& 0.0 ± 0.0 & \underline{32.7 ± 6.6}          
+& 2.0 ± 2.6   & \underline{52.2 ± 23.6}      
+& 0.0 ± 0.0 & \underline{36.8 ± 19.5} 
+& 35.2 ± 6.1  & \underline{71.0 ± 4.6}
+& \textbf{86.2 ± 3.6} & 65 ± 3 \\
+antmaze-large-explore-v0     
+& 2.4 ± 4.4   & \underline{26.6 ± 34.0} 
+& 0.2 ± 0.5 & \underline{66.7 ± 8.3}          
+& 0.0 ± 0.1   & 0.0 ± 0.0                    
+& 1.9 ± 1.8 & \textbf{\underline{91.8 ± 4.6}} 
+& 80.8 ± 5.9 & 80.8 ± 13.9
+& \textbf{91.0 ± 9.4} & 27 ± 1 \\
+\midrule
+humanoidmaze-medium-navigate-v0
+  & 88.5 ± 3.0          & \underline{\textbf{93.3 ± 2.9}}
+  & 31.8 ± 3.8          & \underline{50.5 ± 5.5}
+  & 19.3 ± 8.1          & \underline{19.7 ± 8.2}
+  & 87.9 ± 2.9          & 86.9 ± 3.1 
+  & 80.8 ± 5.9          & 80.8 ± 13.9
+  & \textbf{96.3 ± 0.4} & / \\
+humanoidmaze-medium-stitch-v0
+  & 86.1 ± 3.0          & 84.6 ± 2.5
+  & 14.0 ± 3.6          & \underline{20.2 ± 6.8}
+  & 19.4 ± 5.0          & 14.4 ± 3.0
+  & 63.6 ± 2.2          & \underline{\textbf{95.0 ± 0.9}} 
+  & 88.4 ± 3.3          & 83.9 ± 4.9
+  & \textbf{96.2 ± 1.6} & 91 ± 1 \\
+  humanoidmaze-large-navigate-v0
+  & 48.0 ± 4.7          & \underline{79.4 ± 5.6}
+  & 2.1 ± 1.1           & \underline{8.4 ± 3.6}
+  & 6.8 ± 2.0           & \underline{10.0 ± 2.7}
+  & 46.8 ± 6.8          & \underline{64.3 ± 6.0} 
+  & 78.8 ± 4.3          & \underline{\textbf{86.4 ± 3.5}}
+  & \textbf{84.6 ± 3.7} & / \\
+humanoidmaze-large-stitch-v0
+  & 28.6 ± 2.9          & \underline{65.1 ± 10.7}
+  & 0.7 ± 0.5           & \underline{2.0 ± 0.7}
+  & 3.9 ± 2.5           & 3.1 ± 1.5
+  & 11.6 ± 5.3          & \underline{75.6 ± 12.1} 
+  & 58.2 ± 4.9          & \underline{68.9 ± 9.2}
+  & \textbf{80.6 ± 2.3} & 72 ± 3 \\
+humanoidmaze-giant-navigate-v0 
+& 16.0 ± 8.6 & \underline{85.3 ± 6.1} 
+& 0.7 ± 0.3 & 0.5 ± 2.0                   
+& 1.1 ± 0.5   & 1.0 ± 1.0                    
+& 40.4 ± 2.7 & \underline{79.0 ± 5.3} 
+& \textbf{89.1 ± 3.9} & \underline{\textbf{92.8 ± 2.1}}
+& 85.7 ± 2.5 & / \\
+humanoidmaze-giant-stitch-v0 
+& 4.4 ± 1.3   & \underline{78.1 ± 5.1} 
+& 0.2 ± 0.3 & 0.2 ± 0.5                   
+& 0.5 ± 0.4   & \underline{4.1 ± 2.4}        
+& 0.0 ± 0.1 & \underline{79.8 ± 5.6}
+& 81.6 ± 2.8  & \underline{\textbf{88.8 ± 2.6}}
+& 82.4 ± 2.5 & 67 ± 4 \\
+\midrule
+visual-antmaze-large-navigate-v0 
+& 72.0 ± 3.1 & \underline{\textbf{83.8 ± 2.6}} 
+& 2.4 ± 0.6 & \underline{3.6 ± 0.6}       
+& 0.9 ± 2.4   & 0.3 ± 0.7                    
+& 72.2 ± 4.6 & \underline{75.8 ± 5.2} 
+& 60.2 ± 7.9             & \underline{67.1 ± 12.2}
+& \textbf{85.2 ± 6.6} & / \\
+visual-antmaze-giant-navigate-v0 
+& 5.2 ± 5.2 & \underline{7.6 ± 7.7} 
+& 0.5 ± 0.4 & 0.2 ± 0.3                     
+& 0.1 ± 0.3   & \underline{3.3 ± 3.2}        
+& 4.2 ± 1.2 & \underline{8.4 ± 4.0} 
+& 10.0 ± 6.8 & \underline{19.0 ± 12.1}
+& \textbf{67.2 ± 3.0} & / \\
+visual-antmaze-large-stitch-v0 
+& 28.7 ± 5.5 & \underline{66.4 ± 16.0} 
+& 0.1 ± 0.3 & 0.0 ± 0.0                     
+& 0.4 ± 0.5   & 0.4 ± 0.6                    
+& 6.6 ± 7.6 & \underline{60.4 ± 36.4} 
+& 22.1 ± 5.2 &  \underline{64.6 ± 9.3}
+& \textbf{77.2 ± 6.1} & / \\
+visual-antmaze-giant-stitch-v0 
+& 0.2 ± 0.4 & \underline{32.2 ± 17.3} 
+& 0.0 ± 0.0 & 0.0 ± 0.0                     
+& 0.0 ± 0.1   & \underline{6.0 ± 3.1}        
+& 0.0 ± 0.0 & \underline{31.0 ± 24.9} 
+& 2.2 ± 1.9 &  \underline{35.2 ± 9.1}
+& \textbf{51.9 ± 6.4} & / \\
+visual-antmaze-medium-explore-v0 
+& 0.2 ± 0.6 & \underline{63.0 ± 28.1} 
+& 0.0 ± 0.0 & 0.0 ± 0.0                  
+& 0.7 ± 1.0   & \underline{0.8 ± 1.5}        
+& 2.4 ± 3.4 & \underline{58.0 ± 26.7} 
+&  30.0 ± 15.5  & \textbf{\underline{80.5 ± 34.0}}
+& 65.9 ± 6.8 & / \\
+visual-antmaze-large-explore-v0 
+& 0.0 ± 0.0 & \underline{0.8 ± 1.6} 
+& 0.0 ± 0.0 & 0.0 ± 0.0                      
+& 0.0 ± 0.0   & 0.0 ± 0.0                    
+& 0.0 ± 0.0 & \underline{15.2 ± 13.5} 
+&  3.6 ± 3.9 &  \textbf{\underline{25.2 ± 13.7}}
+& 15.1 ± 6.8 & / \\
+\midrule
+visual-humanoidmaze-medium-navigate-v0 
+& 0.8 ± 0.9 & 0.4 ± 0.5 
+& 0.0 ± 0.0 & 0.0 ± 0.0                    
+& 0.0 ± 0.0   & 0.0 ± 0.0                    
+& 0.1 ± 0.2 & \underline{0.2 ± 0.2} 
+& \textbf{1.5 ± 1.4} & 0.9 ± 0.9
+& / & / \\
+visual-humanoidmaze-medium-stitch-v0 
+& 0.4 ± 0.5 & \underline{0.7 ± 0.6} 
+& 0.0 ± 0.0 & 0.0 ± 0.0                   
+& 0.0 ± 0.0 & 0.0 ± 0.0                    
+& 0.2 ± 0.3 & 0.2 ± 0.4 
+& \textbf{0.8 ± 0.4} & \textbf{0.8 ± 0.7}
+& / & / \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\paragraph{Findings.}
+Despite requiring no additional training, TTGS improves the performance of the base learners in the vast majority of cases. On several hardest tasks (\texttt{humanoidmaze-giant-navigate-v0}, \texttt{humanoidmaze-giant-stitch-v0}, \texttt{visual-antmaze-large-explore-v0}) OTA+TTGS outperforms more complex planning baselines that rely on extra training. These gains support our central claim: simple metric-guided test-time planning can unlock long-horizon competence already latent in value-based GCRL agents. 
+
+\paragraph{Reproduction details and caveats.} The environment provided by OGBench has random start and goal positions even when the task ID and seed are fixed. This explains some variance in the results across tables. CompDiffuser results are taken directly from \citet{Luo2025CompDiffuser}. GAS results were taken from the official implementation repository \href{https://github.com/qortmdgh4141/GAS}{https://github.com/qortmdgh4141/GAS}, since humanoidmaze results were not reported in the paper.
+
+\paragraph{Comparison with GAS using fixed hyperparameters.}
+To compare the sensitivity to hyperparameters with GAS, we compare HIQL+TTGS using a single fixed set of hyperparameters tuned for \texttt{antmaze} across other domains. TTGS uses ($\tau = 24, T = 48$), GAS uses official implementation with \texttt{antmaze} hyperparameters, both evaluated over 8 random seeds. Results are reported in \autoref{tab:ttgs-gas-fixed}. While GAS achieves higher scores on tuned environment, TTGS outperforms GAS on \texttt{humanoidmaze} and \texttt{pointmaze}, highlighting the robustness of TTGS across diverse domains despite using fixed hyperparameters, which might be important in a fully offline setting or when tuning is expensive.
+\begin{table}[H]
+  \centering
+  \caption{Success rates on OGBench locomotion tasks for HIQL+TTGS and GAS using a single fixed set of hyperparameters derived from \texttt{antmaze}. While GAS achieves higher scores on \texttt{antmaze} (the domain it is tuned for), TTGS with fixed hyperparameters drastically outperforms GAS on \texttt{humanoidmaze} and \texttt{pointmaze}, highlighting TTGS as a more robust cross-domain planner.}
+  \label{tab:ttgs-gas-fixed}
+  \begin{tabular}{lrrr}
+    \toprule
+    Dataset & HIQL & HIQL+TTGS (Fixed) & GAS (Fixed) \\
+    \midrule
+    pointmaze-giant-navigate-v0    & $47 \pm 10$ & $\mathbf{\underline{68 \pm 13}}$ & $5 \pm 11$ \\
+    pointmaze-giant-stitch-v0      & $0 \pm 0$   & $\mathbf{\underline{73 \pm 14}}$ & $0 \pm 0$ \\
+    \midrule
+    antmaze-giant-navigate-v0      & $67 \pm 4$  & $\underline{68 \pm 3}$  & $\mathbf{76 \pm 6}$ \\
+    antmaze-giant-stitch-v0        & $2 \pm 1$   & $\underline{48 \pm 19}$ & $\mathbf{86 \pm 4}$ \\
+    antmaze-large-explore-v0       & $5 \pm 7$   & $\underline{60 \pm 26}$ & $\mathbf{91 \pm 9}$ \\
+    \midrule
+    humanoidmaze-giant-navigate-v0 & $14 \pm 6$  & $\mathbf{\underline{78 \pm 9}}$  & $14 \pm 5$ \\
+    humanoidmaze-giant-stitch-v0   & $4 \pm 2$   & $\mathbf{\underline{69 \pm 18}}$ & $8 \pm 4$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Value function to distance mappings} \label{apdx:value_distance}
+
+\paragraph{Value-to-distance transformation for HIQL, SAW, and GCIQL.}
+HIQL, SAW, and GCIQL use a per-step penalty, that is reward $-1$ until the goal and $0$ at the goal. As discussed in \Cref{subsec:distance}, we map goal-conditioned values to predicted step counts via
+\[
+    d(s,g)=\log_{\gamma}\!\big(1+(1-\gamma)\,V_{\text{clip}}(s,g)\big),
+\]
+where $\gamma\in(0,1)$ is the discount factor. To avoid infinite outputs, we clip value predictions to the open interval $\bigl(-\tfrac{1}{1-\gamma},\,0\bigr)$ with a small margin $\varepsilon=10^{-3}$:
+\[
+V_{\text{clip}}(s,g)=\min\!\bigl(-\varepsilon,\;\max\!\bigl(V(s,g),\,-\tfrac{1}{1-\gamma}+\varepsilon\bigr)\bigr).
+\]
+We then apply the transform to $V_{\text{clip}}$. For HIQL and SAW we average the two value heads, $V(s,g)=\tfrac{1}{2}\bigl(V_1(s,g)+V_2(s,g)\bigr)$. For GCIQL we use its single value head $V(s,g)$.
+
+\paragraph{OTA distance.}
+OTA learns two goal-conditioned value functions at different temporal resolutions: a low-level critic $V^{\text{low}}(s,g)$ defined over primitive environment steps, and a high-level critic $V^{\text{high}}(s,g)$ defined over temporally abstracted option transitions of length $n$ environment steps. Both critics use two value heads;
+We average them and apply the same clipping to the open interval $\bigl(-\tfrac{1}{1-\gamma},\,0\bigr)$ with margin $\varepsilon$ as above, then inverting the geometric-sum return for the negative reward semantics via
+\[
+\hat d(V;\gamma)=\log_{\gamma}\!\bigl(1+(1-\gamma)\,V\bigr).
+\]
+For the low-level critic this directly yields an environment-step estimate
+$d_{\text{low}}(s,g)=\hat d\!\bigl(V^{\text{low}}(s,g);\gamma_{\text{low}}\bigr)$.
+For the high-level critic, the value is defined at option boundaries and corresponds to accumulating a penalty $-1$ for each \emph{unsuccessful} option and $0$ for the final successful option; therefore $\hat d$ recovers the expected number of failed options
+$k_{\text{opt}}(s,g)=\hat d\!\bigl(V^{\text{high}}(s,g);\gamma_{\text{high}}\bigr)$.
+This means that $k_{\text{opt}}(s,g)+1$ is expected amount of options to reach the goal. It can be converted to environment steps by
+\[
+d_{\text{high}}(s,g)=n\bigl(k_{\text{opt}}(s,g)+1\bigr).
+\]
+Finally, we combine both distances into a single environment-step prediction by using $d_{\text{low}}$ for short horizons and gradually switching to the more stable $d_{\text{high}}$ for long horizons, matching the training distributions of both value functions. We use $d_{\text{low}}$ when it predicts distances below $s_0$ (\texttt{subgoal\_steps}) used to train the actor policies of OTA and linearly interpolate to $d_{\text{high}}$ with $n$ as the ramp width, where $n$ is the \texttt{abstraction\_factor} hyperparameter of OTA:
+\[
+w=\mathrm{clip}\!\left(\frac{d_{\text{low}}(s,g)-s_0}{n},\,0,\,1\right),\qquad
+d(s,g)=(1-w)\,d_{\text{low}}(s,g)+w\,\max\!\bigl(d_{\text{high}}(s,g),\,d_{\text{low}}(s,g)\bigr).
+\]
+
+
+\paragraph{QRL distance.}
+Quasi-metric RL learns a nonnegative function $d_{\text{qrl}}(s,g)$ that approximates the number of steps from $s$ to $g$. This head already represents a distance, so we use it directly without additional transformation.
+
+
+\paragraph{Minimum step constraint.}
+In all cases we lower bound predicted distances by $1$ step, since no transition can be completed with fewer than one action.
+
+
+
+\section{Manipulation Tasks and Value Function Geometry} \label{apdx:manipulation}
+
+
+\begin{figure}[t]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{plots/locodist.pdf}
+        \caption{\texttt{humanoidmaze-giant-stitch-v0} (HIQL)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{plots/antmaze-stitch-task1.pdf}
+        \caption{\texttt{antmaze-giant-stitch-v0} (SAW)}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{plots/manidist.pdf}
+        \caption{\texttt{cube-triple-play-v0} (HIQL)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{plots/scene-play-task1.pdf}
+        \caption{\texttt{scene-play-v0} (SAW)}
+    \end{subfigure}
+    \caption{\textbf{Value Function Geometry.} In locomotion tasks (a, b), dataset states form a connected band between start and goal (low $x+y$), supporting planning. In manipulation tasks (c, d), evaluation goals often lie far from the data distribution, creating a gap where no intermediate states exist. TTGS correctly identifies these high-cost edges and defaults to the base policy rather than hallucinating paths.}
+    \label{fig:manip_viz}
+\end{figure}
+
+We evaluate TTGS on OGBench manipulation tasks in \autoref{tab:manipulation}, pairing it with the strongest base agent provided by OGBench for these domains, GCIQL. We observe that improvements are consistent but modest compared to locomotion tasks.
+\begin{table}[H]
+  \centering
+  \caption{\textbf{Success rates on OGBench manipulation tasks.} Improvements are modest because manipulation datasets lack intermediate states connecting start and evaluation goals, so TTGS often correctly defaults to the base policy instead of hallucinating unsupported plans.}
+  \label{tab:manipulation}
+  \begin{tabular}{lrr}
+    \toprule
+    Dataset        & GCIQL Success & GCIQL+TTGS Success \\
+    \midrule
+    scene-play-v0         & 50 ± 7    & \underline{52 ± 4} \\
+    cube-triple-play-v0   & 4 ± 2     & 4 ± 2  \\
+    puzzle-4x5-play-v0    & 12 ± 3   & \underline{13 ± 3} \\
+    puzzle-4x6-play-v0    & 10 ± 0    & 10 ± 0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+To understand this behavior, we analyze the geometry of the learned value functions. In \autoref{fig:manip_viz}, we visualize the distribution of the sampled dataset states on a 2D plane defined by the predicted distance from the start state ($x$-axis) and the predicted distance to the goal ($y$-axis).
+
+In locomotion tasks (\texttt{humanoidmaze}, \texttt{antmaze}), states typically form a curve connecting the start and goal (low $x+y$), providing a dense set of intermediate subgoals for the graph search. In contrast, for manipulation tasks (\texttt{cube-triple}, \texttt{scene}), the dataset states often cluster far from both the start and the evaluation goal, with very few states bridging the gap. This indicates that the evaluation goals lie outside the main data manifold. Crucially, TTGS correctly identifies that no reliable path exists through the graph—due to high edge costs across the manifold gap—and defaults to the base policy behavior. This confirms that TTGS acts as a safe planning wrapper that does not hallucinate plans when data support is missing.
+
+
+\section{Alternative Training Data Filtering} \label{apdx:data_filtering}
+
+We tested a vertex sampling scheme based on clustering to improve state coverage, inspired by \citet{gas_baek2025}. While \citet{gas_baek2025} filter states by temporal efficiency before clustering, we found that adapting this metric to standard value functions was ineffective in preliminary runs. Consequently, we compare standard TTGS (which uses uniform random sampling for graph vertices) against a variant that selects vertices by clustering a large pool of randomly sampled states.
+
+\paragraph{Clustering.}
+We sample a large subset $\mathcal{H}$ of 80,000 states uniformly from $\mathcal{D}$. We select graph vertices $\mathcal{V}\subset\mathcal{H}$ using a single-pass greedy clustering rule with radius $r = \tau/2$:
+\begin{enumerate}
+\item Initialize $\mathcal{V}\leftarrow\{s^{(0)}\}$, the first element of $\mathcal{H}$.
+\item For each $x\in\mathcal{H}$, compute $m=\min_{v\in\mathcal{V}}\hat d(x,v)$.
+\item If $m>r$, add $x$ to $\mathcal{V}$. Otherwise assign $x$ to its nearest center and periodically update that center to the member that minimizes total within-cluster distance.
+\end{enumerate}
+
+\autoref{tab:ttgs_clustering} compares the performance and runtime of TTGS with random sampling versus clustering. We observe no statistically significant performance gain from clustering, while the computational cost of graph construction increases by an order of magnitude (from $\sim$40 seconds to $>$10 minutes). Thus, we adopt random sampling as the default for its efficiency.
+
+\begin{table}[H]
+    \centering
+    \caption{\textbf{Effect of state clustering on TTGS.} We compare TTGS with and without state clustering. Clustering uses a random subset of 80{,}000 states, clustering distance threshold $\frac{1}{2}\tau$, and a maximum of 4{,}000 cluster centers. From the empirical results, clustering provides only marginal gains while its computational overhead is dominant in the overall cost.}
+    \label{tab:ttgs_clustering}
+    \scriptsize
+    \setlength{\tabcolsep}{1.4pt}
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} lrrrrr}
+    \toprule
+    \textbf{Environment} &
+    \textbf{HIQL} &
+    \textbf{\makecell{HIQL+TTGS \\w/o Clustering}} &
+    \textbf{\makecell{HIQL+TTGS \\w/ Clustering}} &
+    \textbf{Clustering Time (s)} &
+    \textbf{Cluster Centers} \\
+    \midrule
+    
+    \texttt{pointmaze-giant-navigate-v0}      & 43 ± 12 & \textbf{\underline{73 ± 12}} & \textbf{\underline{74 ± 9}}  & 814.76 & 613.0   \\
+    \texttt{pointmaze-giant-stitch-v0}        & 0 ± 0   & \textbf{\underline{80 ± 6}}  & \textbf{\underline{79 ± 10}} & 876.43 & 3904.88 \\
+    \midrule
+    \texttt{antmaze-giant-navigate-v0}        & 64 ± 4  & \textbf{\underline{67 ± 3}}  & \textbf{\underline{69 ± 3}}  & 706.77 & 4000.0  \\
+    \texttt{antmaze-giant-stitch-v0}          & 2 ± 1   & \textbf{\underline{70 ± 14}} & \textbf{\underline{69 ± 11}} & 1932.88 & 4000.0 \\
+    \texttt{antmaze-large-explore-v0}         & 2 ± 4   & \textbf{\underline{26 ± 34}} & \textbf{\underline{25 ± 33}} & 771.11 & 4000.0  \\
+    \midrule
+    \texttt{humanoidmaze-giant-navigate-v0}   & 15 ± 7  & \textbf{\underline{85 ± 6}}  & \textbf{\underline{83 ± 9}}  & 691.54 & 4000.0  \\
+    \texttt{humanoidmaze-giant-stitch-v0}     & 4 ± 2   & \textbf{\underline{78 ± 8}}  & \textbf{\underline{78 ± 12}} & 705.48 & 4000.0  \\
+    \bottomrule
+    \end{tabular*}
+\end{table}
+
+\section{Soft vs. Hard Edge Penalties} \label{apdx:hard_vs_soft}
+We investigate whether the soft penalty scheme is necessary compared to a simpler hard thresholding scheme. We compare our method (Soft Penalty) against a variant where edges with predicted distance greater than $\tau$ are removed entirely (Hard Threshold). 
+
+\autoref{tab:hard_vs_soft_results} presents the results. On simple navigation tasks, the Hard Threshold often performs comparably to the Soft Penalty. However, on tasks requiring trajectory stitching, the Hard Threshold leads to drastic performance drops. For example, success drops from $78.6\%$ to $2.2\%$ on \texttt{antmaze-giant-stitch-v0} and from $78.1\%$ to $14.0\%$ on \texttt{humanoidmaze-giant-stitch-v0}.
+
+This performance gap is explained by the \emph{Disconnect Ratio}, defined as the fraction of episodes where the goal becomes unreachable from the start state in the constructed graph. Standard value functions are noisy and may underestimate the cost of specific transitions required to bridge disparate trajectories in the dataset. A hard threshold disconnects these essential links, rendering planning impossible. The soft penalty allows these edges to persist with high cost, preserving connectivity while still discouraging their use unless no safer path exists.
+
+\begin{table}[H]
+    \centering
+    \caption{\textbf{Comparison of Soft vs. Hard Penalties.} The Hard Threshold variant frequently disconnects the graph on stitching tasks (high Disconnect Ratio), leading to poor success rates. The Soft Penalty maintains connectivity by assigning high costs to optimistic edges rather than removing them. Results are for HIQL+TTGS.}
+    \label{tab:hard_vs_soft_results}
+    \scriptsize
+    \setlength{\tabcolsep}{1.4pt}
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} lrrrrrr}
+    \toprule
+    \textbf{Dataset} & \textbf{HIQL+TTGS (Soft)} & \textbf{HIQL+TTGS (Hard)} & \textbf{Disconnect Ratio} \\
+    \midrule
+    \texttt{pointmaze-giant-navigate-v0} & \textbf{71 ± 12} & 65 ± 10 & 0.08 \\
+    \texttt{pointmaze-giant-stitch-v0} & \textbf{81 ± 9} & 66 ± 9 & 0.25 \\
+    \midrule
+    \texttt{antmaze-giant-navigate-v0} & \textbf{66 ± 4} & \textbf{67 ± 4} & 0.11 \\
+    \texttt{antmaze-giant-stitch-v0} & \textbf{79 ± 13} & 2 ± 2 & 0.99 \\
+    \texttt{antmaze-large-explore-v0} & 27 ± 34 & \textbf{53 ± 32} & 0.00 \\
+    \midrule
+    \texttt{humanoidmaze-giant-navigate-v0} & \textbf{85 ± 6} & 57 ± 9 & 0.47 \\
+    \texttt{humanoidmaze-giant-stitch-v0} & \textbf{78 ± 5} & 14 ± 14 & 0.84 \\
+    \midrule
+    \texttt{visual-antmaze-large-navigate-v0} & \textbf{84 ± 3} & 64 ± 9 & 0.38 \\
+    \texttt{visual-antmaze-large-stitch-v0} & \textbf{66 ± 16} & 31 ± 14 & 0.54 \\
+    \bottomrule
+    \end{tabular*}
+\end{table}
+
+\section{Runtime Analysis} \label{apdx:runtime}
+
+We provide a detailed breakdown of the computational overhead of TTGS in \autoref{tab:ttgs_runtime_overhead}. All runtimes were measured on a single Nvidia L40s GPU with 8 virtual CPU cores. Graph construction is performed once per dataset, and the shortest path search is performed once per episode (or sparingly if replanning). Both operations are matrix-heavy and highly parallelizable; we implement them on the GPU. The per-episode planning overhead is generally around 1 second or less. The per-step action selection overhead is negligible ($\approx 1.5$ ms).
+
+\begin{table}[H]
+    \centering
+    \caption{\textbf{TTGS Runtime Overhead.} Per-environment cost of graph construction and online planning components in TTGS. Measured on an Nvidia L40s GPU with 8 vCPUs using HIQL as base agent. Graph build is one-time compute for all the tasks, while shortest path is one-time compute per episode. }
+    \label{tab:ttgs_runtime_overhead}
+    \scriptsize
+    \setlength{\tabcolsep}{1.4pt}
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} lrrrr}
+    \toprule
+    \textbf{Environment} & \textbf{Graph Construction (s)} & \textbf{Shortest Path (s)} & \textbf{Pick Subgoal (ms)} & \textbf{Step Overhead (ms)} \\
+    \midrule
+    \texttt{pointmaze-giant-navigate-v0} & 36.42 & 1.25 & 0.36 & 1.68 \\
+    \texttt{pointmaze-giant-stitch-v0} & 34.98 & 0.79 & 0.37 & 1.61 \\
+    \midrule
+    \texttt{antmaze-giant-navigate-v0} & 36.55 & 0.46 & 0.37 & 1.42 \\
+    \texttt{antmaze-giant-stitch-v0} & 36.26 & 0.84 & 0.39 & 1.66 \\
+    \texttt{antmaze-large-explore-v0} & 36.40 & 0.46 & 0.38 & 1.33 \\
+    \midrule
+    \texttt{humanoidmaze-giant-navigate-v0} & 34.99 & 0.59 & 0.38 & 1.39 \\
+    \texttt{humanoidmaze-giant-stitch-v0} & 36.35 & 1.0 & 0.39 & 1.38 \\
+    \midrule
+    \texttt{visual-antmaze-large-navigate-v0} & 100.02 & 0.53 & 0.47 & 2.63 \\
+    \texttt{visual-antmaze-large-stitch-v0} & 100.89 & 0.53 & 0.48 & 2.49 \\
+    \bottomrule
+    \end{tabular*}
+\end{table}
+
+\section{Replanning Analysis} \label{apdx:replan}
+
+We evaluate a variant of TTGS that triggers a full recalculation of the shortest path if the agent deviates from the current subgoal by more than $2T$. To prevent excessive path oscillations, we limit replanning to occur at most once every 50 steps. \autoref{tab:ttgs_replan_ablation} compares this against the standard one-time planning approach. Results show that while replanning can help in datasets with highly noisy trajectories (e.g., \texttt{antmaze-large-explore}), the adaptive subgoal selection on the fixed guide path is sufficient and often superior for most tasks.
+
+\begin{table}[H]
+    \centering
+    \caption{\textbf{Effect of replanning in TTGS.} Comparison between the default TTGS (one-time planning) with a variant that replans when the agent strays $>2T$ from the current subgoal (at most once every 50 steps). \emph{Replan Episode Ratio} indicates the fraction of episodes where replanning occurred. In most environments, the one-time adaptive guide is sufficient, and frequent replanning can degrade performance by causing oscillations.}
+    \label{tab:ttgs_replan_ablation}
+    \scriptsize
+    \setlength{\tabcolsep}{1.4pt}
+    \renewcommand{\arraystretch}{1.5}
+    \small
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} lrrrr}
+    \toprule
+    \textbf{Environment} & \textbf{HIQL} & \textbf{\makecell{HIQL+TTGS \\ w/o Replan}} & \textbf{\makecell{HIQL+TTGS \\ w/ Replan}} & \textbf{\makecell{Replan Episode \\ Ratio}} \\
+    \midrule
+    
+    \texttt{pointmaze-giant-navigate-v0}       & 50 ± 13 & \textbf{\underline{73 ± 12}} & \textbf{\underline{72 ± 6}} & 0.01 \\
+    \texttt{pointmaze-giant-stitch-v0}         & 0 ± 0 & \textbf{\underline{80 ± 6}} & \textbf{\underline{80 ± 6}} & 0.00 \\
+    \midrule
+    \texttt{antmaze-giant-navigate-v0}         & 66 ± 3 & \textbf{\underline{67 ± 3}} & \textbf{\underline{71 ± 2}} & 0.52 \\
+    \texttt{antmaze-giant-stitch-v0}           & 1 ± 1  & \textbf{\underline{70 ± 14}} & \textbf{\underline{67 ± 13}} & 0.38 \\
+    \texttt{antmaze-large-explore-v0}          & 2 ± 3  & \underline{26 ± 34} & \textbf{\underline{50 ± 32}} & 0.07 \\
+    \midrule
+    \texttt{humanoidmaze-giant-navigate-v0}    & 14 ± 5 & \textbf{\underline{85 ± 6}} & \underline{78 ± 4} & 0.52 \\
+    \texttt{humanoidmaze-giant-stitch-v0}      & 4 ± 3  & \textbf{\underline{78 ± 8}} & \underline{33 ± 10} & 0.98 \\
+    \midrule
+    \texttt{visual-antmaze-large-navigate-v0}  & 46 ± 14 & \textbf{\underline{82 ± 7}} & \underline{70 ± 10} & 0.86 \\
+    \texttt{visual-antmaze-large-stitch-v0}    & 18 ± 8 & \textbf{\underline{78 ± 4}} & \underline{53 ± 24} & 0.76 \\
+    \bottomrule
+    \end{tabular*}
+\end{table}
+
+\section{Hyperparameters} \label{apdx:res_design}
+
+TTGS does not require training and has only three hyperparameters, so tuning is quick and simple. We did not run extensive sweeps; \autoref{tab:hyperparams} lists the values used in our experiments.
+
+\begin{table}[ht]
+    \centering
+    \caption{Hyperparameter settings used in our experiments.}
+    \label{tab:hyperparams}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r c c c c c}
+        \toprule
+        \textbf{Dataset} & $M$ & HIQL $(\tau, T)$ & QRL $(\tau, T)$ & GCIQL $(\tau, T)$ & SAW $(\tau, T)$ & OTA $(\tau, T)$ \\
+        \midrule
+        pointmaze-medium-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48) \\
+        pointmaze-medium-stitch-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        pointmaze-large-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        pointmaze-large-stitch-v0      & 4000 & (24, 48) & (24, 48) & (48, 96) & (24, 48) & (24, 48)\\
+        pointmaze-giant-navigate-v0   & 4000 & (24, 48) & (24, 48) & (12, 24) & (24, 48) & (24, 48)\\
+        pointmaze-giant-stitch-v0     & 4000 & (12, 24) & (12, 24) & (6, 12) & (24, 48) & (24, 48)\\
+        antmaze-medium-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        antmaze-medium-stitch-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        antmaze-large-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        antmaze-large-stitch-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        antmaze-giant-navigate-v0     & 4000 & (24, 48) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        antmaze-giant-stitch-v0       & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        antmaze-large-explore-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
+        humanoidmaze-medium-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (48, 96)\\
+        humanoidmaze-medium-stitch-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (48, 96)\\
+        humanoidmaze-large-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (48, 96)\\
+        humanoidmaze-large-stitch-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (48, 96)\\
+        humanoidmaze-giant-navigate-v0& 4000 & (36, 72) & (24, 48) & (24, 48) & (24, 48) & (48, 96)\\
+        humanoidmaze-giant-stitch-v0  & 4000 & (24, 48) & (24, 48) & (12, 24) & (24, 48) & (48, 96)\\
+        visual-antmaze-large-navigate-v0  & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        visual-antmaze-giant-navigate-v0  & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        visual-antmaze-large-stitch-v0    & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        visual-antmaze-giant-stitch-v0    & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        visual-antmaze-medium-explore-v0  & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        visual-antmaze-large-explore-v0   & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (24, 48)\\
+        visual-humanoidmaze-medium-navigate-v0 & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (48, 96)\\
+        visual-humanoidmaze-medium-stitch-v0   & 4000 & (12, 24) & (12, 24) & (12, 24) & (24, 48) & (48, 96)\\
+        \bottomrule
+    \end{tabular*}
+\end{table}
+
+
+$M$ is the number of dataset states sampled as graph vertices. Larger $M$ increases coverage and cost. In our preliminary experiments we found $M=4000$ to be sufficient while performant, with $M$ as low as 100 helpful for improving base agent's performance.
+
+$\tau$ is the edge-length threshold used to compute graph weights: distances greater than $\tau$ are penalized. A larger $\tau$ permits longer hops and is suitable only when long-range distance estimates are accurate and the pretrained policy can reliably traverse them.
+
+$T$ is the maximum allowed distance between the current state and the selected subgoal at execution time. Choose $T$ near the range where the frozen policy is most reliable.
+
+% describe the methodology for hyperparameter selection, e.g. with what variants we tried why we choose this kind of combo
+\paragraph{Hyperparameter selection methodology.}
+We selected $(\tau, T)$ using a lightweight manual sweep rather than an extensive grid search.
+In practice we evaluated a small set of candidate pairs following a doubling schedule,
+e.g., $(\tau, T)\in\{(12,24),(24,48),(48,96)\}$, which keeps the search space compact while covering substantially different hop lengths. Usually, we tried 1 or 2 hyperparameter settings per dataset and base agent.
+For each candidate $(\tau, T)$, we first constructed the TTGS graph and qualitatively checked the resulting shortest paths:
+(i) whether paths contain “blank” segments indicative of poor connectivity or unreliable long edges, and
+(ii) whether paths become excessively fragmented into too many short hops (suggesting an overly conservative threshold).
+We then ran 1 random seed with promising parameters and selected the pair that produced stable, interpretable paths and the strongest improvement in task performance. We didn't tune SAW across environments and still observe reasonable performance.
+Since the sweep involves only a handful of settings, we encourage users to repeat this procedure for new environments or base agents, as the optimal trade-off between long hops and reliability can vary.
+
+\section{Use of Generative AI}
+LLMs were used to revise and polish writing on a single-paragraph scale.
+\end{document}
