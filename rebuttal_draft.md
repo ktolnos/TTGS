@@ -91,29 +91,24 @@ Thank you for raising this point. We acknowledge this difference in Appendix A a
 
 We provide new scaling experiments (HIQL, 8 seeds):
 
-**humanoidmaze-giant-stitch:**
-
 | M | Success Rate | Build Time (s) | Path Time (s) |
 | :---- | :---- | :---- | :---- |
-| 125 | 10.4 $\pm$10.0 | 7.4 $\pm$2.0 | 0.06 |
-| 250 | 13.3 $\pm$11.6 | 5.9 $\pm$1.1 | 0.07 |
-| 500 | 42.4 $\pm$22.9 | 5.0 $\pm$1.5 | 0.14 |
-| 1000 | 60.0 $\pm$19.6 | 6.9 $\pm$1.7 | 0.24 |
-| 2000 | 72.8 $\pm$13.0 | 10.7 $\pm$1.7 | 0.44 |
-| 4000 | 76.7 $\pm$18.1 | 26.2 $\pm$1.5 | 0.84 |
-| 8000 | 78.7 $\pm$12.8 | 99.8 $\pm$8.7 | 1.31 |
-
-**antmaze-giant-stitch:**
-
-| M | Success Rate | Build Time (s) | Path Time (s) |
-| :---- | :---- | :---- | :---- |
-| 125 | 29.2 $\pm$8.3 | 9.3 $\pm$4.2 | 0.05 |
-| 250 | 29.9 $\pm$12.4 | 8.2 $\pm$4.4 | 0.06 |
-| 500 | 51.6 $\pm$12.1 | 3.7 $\pm$0.4 | 0.10 |
-| 1000 | 53.6 $\pm$16.8 | 5.8 $\pm$1.4 | 0.20 |
-| 2000 | 70.9 $\pm$10.6 | 10.2 $\pm$1.3 | 0.39 |
-| 4000 | 76.5 $\pm$5.2 | 25.5 $\pm$0.9 | 0.69 |
-| 8000 | 81.1 $\pm$2.5 | 88.6 $\pm$2.5 | 1.13 |
+| **humanoidmaze-giant-stitch** | | | |
+| 125 | 10.4 ±10.0 | 7.4 ±2.0 | 0.06 |
+| 250 | 13.3 ±11.6 | 5.9 ±1.1 | 0.07 |
+| 500 | 42.4 ±22.9 | 5.0 ±1.5 | 0.14 |
+| 1000 | 60.0 ±19.6 | 6.9 ±1.7 | 0.24 |
+| 2000 | 72.8 ±13.0 | 10.7 ±1.7 | 0.44 |
+| 4000 | 76.7 ±18.1 | 26.2 ±1.5 | 0.84 |
+| 8000 | 78.7 ±12.8 | 99.8 ±8.7 | 1.31 |
+| **antmaze-giant-stitch** | | | |
+| 125 | 29.2 ±8.3 | 9.3 ±4.2 | 0.05 |
+| 250 | 29.9 ±12.4 | 8.2 ±4.4 | 0.06 |
+| 500 | 51.6 ±12.1 | 3.7 ±0.4 | 0.10 |
+| 1000 | 53.6 ±16.8 | 5.8 ±1.4 | 0.20 |
+| 2000 | 70.9 ±10.6 | 10.2 ±1.3 | 0.39 |
+| 4000 | 76.5 ±5.2 | 25.5 ±0.9 | 0.69 |
+| 8000 | 81.1 ±2.5 | 88.6 ±2.5 | 1.13 |
 
 Performance increases with number of samples. Build time grows quadratically but remains under 2 minutes even at $M{=}8000$. Path computation stays under 1.5s.
 
@@ -137,29 +132,24 @@ We thank Reviewer VfQS for the constructive review.
 
 We ran this experiment with HIQL, $M{=}4000$, 8 seeds:
 
-**humanoidmaze-giant-stitch:**
-
-| Method | Graph | k | Success Rate | Disconnect Ratio |
-| :---- | :---- | :---- | :---- | :---- |
-| HIQL | -- | -- | 3.2 $\pm$0.5 | -- |
-| HIQL + TTGS | Value-derived full graph | -- | 76.7 $\pm$18.1 | 0.00 |
-| HIQL + L2-kNN | Directed kNN graph | 2 | 3.2 $\pm$1.4 | 1.00 |
-| HIQL + L2-kNN | Directed kNN graph | 5 | 28.1 $\pm$20.6 | 0.64 |
-| HIQL + L2-kNN | Directed kNN graph | 10 | 59.4 $\pm$15.3 | 0.00 |
-| HIQL + L2-kNN | Directed kNN graph | 20 | 18.8 $\pm$13.3 | 0.00 |
-| HIQL + L2-kNN | Directed kNN graph | 50 | 3.2 $\pm$3.9 | 0.00 |
-
-**antmaze-giant-stitch:**
-
-| Method | Graph | k | Success Rate | Disconnect Ratio |
-| :---- | :---- | :---- | :---- | :---- |
-| HIQL | -- | -- | 1.6 $\pm$0.9 | -- |
-| HIQL + TTGS | Value-derived full graph | -- | 76.5 $\pm$5.2 | 0.00 |
-| HIQL + L2-kNN | Directed kNN graph | 2 | 1.6 $\pm$1.1 | 1.00 |
-| HIQL + L2-kNN | Directed kNN graph | 5 | 1.6 $\pm$1.1 | 1.00 |
-| HIQL + L2-kNN | Directed kNN graph | 10 | 29.2 $\pm$23.9 | 0.60 |
-| HIQL + L2-kNN | Directed kNN graph | 20 | 66.6 $\pm$3.6 | 0.00 |
-| HIQL + L2-kNN | Directed kNN graph | 50 | 9.6 $\pm$7.0 | 0.00 |
+| Method | k | Success Rate | Disconnect Ratio |
+| :---- | :---- | :---- | :---- |
+| **humanoidmaze-giant-stitch** | | | |
+| HIQL | -- | 3.2 ±0.5 | -- |
+| HIQL + TTGS | -- | 76.7 ±18.1 | 0.00 |
+| HIQL + L2-kNN | 2 | 3.2 ±1.4 | 1.00 |
+| HIQL + L2-kNN | 5 | 28.1 ±20.6 | 0.64 |
+| HIQL + L2-kNN | 10 | 59.4 ±15.3 | 0.00 |
+| HIQL + L2-kNN | 20 | 18.8 ±13.3 | 0.00 |
+| HIQL + L2-kNN | 50 | 3.2 ±3.9 | 0.00 |
+| **antmaze-giant-stitch** | | | |
+| HIQL | -- | 1.6 ±0.9 | -- |
+| HIQL + TTGS | -- | 76.5 ±5.2 | 0.00 |
+| HIQL + L2-kNN | 2 | 1.6 ±1.1 | 1.00 |
+| HIQL + L2-kNN | 5 | 1.6 ±1.1 | 1.00 |
+| HIQL + L2-kNN | 10 | 29.2 ±23.9 | 0.60 |
+| HIQL + L2-kNN | 20 | 66.6 ±3.6 | 0.00 |
+| HIQL + L2-kNN | 50 | 9.6 ±7.0 | 0.00 |
 
 This experiment is informative in several ways. First, waypoint planning with geometric distances does help substantially at the right $k$, confirming that graph-based subgoal decomposition is a powerful idea. However, L2-kNN is fragile: performance is highly sensitive to $k$, with graph disconnections at low $k$ and wormhole-like shortcuts at high $k$. The optimal $k$ also differs across environments ($k{=}10$ for humanoidmaze, $k{=}20$ for antmaze). TTGS addresses exactly this fragility through its soft penalty and full-graph construction, achieving 76.7% and 76.5% without needing to select $k$. Second, the L2 baseline computes distances between body positions, which requires privileged knowledge of which observation dimensions correspond to the agent's position. In visual domains this information is simply absent. Value-derived distances, which TTGS uses by default, require no such privileged knowledge and perform comparably to L2 on state-based tasks (Table 1) while being the only option for pixel-based tasks.
 
