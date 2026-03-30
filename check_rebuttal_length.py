@@ -21,4 +21,4 @@ def check_rebuttal_lengths(filepath, limit=5000):
         sys.exit(1)
 
 if __name__ == "__main__":
-    check_rebuttal_lengths("rebuttal_draft.md")
+    check_rebuttal_lengths("rebuttals.md")

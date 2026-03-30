@@ -19,17 +19,17 @@ While violations do occur within the trust region, their magnitude is negligible
 
 > TTGS fails when intermediate states are absent from the offline dataset, particularly on manipulation tasks. Could the authors provide a more detailed discussion of potential solutions to this limitation?
 
-We agree this is a fundamental constraint of any method planning over fixed data. We note two nuances: (1) sometimes intermediate states exist in the dataset, but the value function fails to recognize them as reachable due to long-horizon estimation errors. Improving value learning is complementary to TTGS. (2) When coverage gaps are detected (e.g., paths with too few intermediate waypoints), generative models trained on the offline data could synthesize additional states. Additionally, our manual analysis of 100 failed navigation episodes shows that the dominant failure mode is the base policy failing to reach a close subgoal, not missing graph coverage. This suggests that in practice, coverage is less often the bottleneck than policy execution quality. We will expand this discussion.
+We agree this is a fundamental constraint of any method planning over fixed data. We note two nuances: (1) sometimes intermediate states exist in the dataset, but the value function fails to recognize them as reachable due to long-horizon estimation errors. Improving value learning is complementary to TTGS. (2) When coverage gaps are detected (e.g., paths with too few intermediate waypoints), generative models trained on the offline data could synthesize additional states. For navigation, we performed a manual analysis of 100 failed episodes and found that the dominant failure mode is the base policy failing to reach a close subgoal, not missing graph coverage. We will expand the discussion of failures in the paper.
 
 > The results suggest non-trivial sensitivity to hyperparameters across environments. Could the authors provide any heuristics or guidelines for setting these parameters in a new environment?
 
-We achieved our strong performance without extensive hyperparameter sweeps. For most experiments, we tested 1-2 settings per $(\tau, T)$ pair; SAW used a single configuration across all tasks with no tuning. Our heuristic (detailed in Appendix H): set $\tau$ by visually inspecting the shortest paths on the graph. If paths are excessively fragmented into many short hops, $\tau$ is too small; if paths contain "blank" segments indicative of unreliable long edges, $\tau$ is too large. Then set $T = 2\tau$. We will highlight this procedure in the main text.
+We achieved our strong performance without extensive hyperparameter sweeps. For most experiments, we tested 1-2 settings per $(\tau, T)$ pair; SAW used a single configuration across all tasks with no tuning. Our heuristic (detailed in Appendix H): set $\tau$ by visually inspecting the shortest paths on the graph. If paths are excessively fragmented into many short hops, $\tau$ is too small; if paths contain many unreliable long edges, $\tau$ is too large. Then set $T = 2\tau$. We will highlight this procedure in the main text.
 
 > TTGS relies on an additional penalty function to balance two competing failure modes... This reveals that the usability of the graph remains sensitive to errors in the distance estimates, which are largely driven by value function noise.
 
 The soft penalty is specifically designed for this: rather than removing noisy edges (which fragments the graph), it assigns them a high cost, preserving connectivity while steering the planner toward reliable short hops. The ablation in Figure 4a confirms that this outperforms both no-penalty and hard-threshold variants. Empirically, TTGS improves all five base learners we tested despite their substantially different value function characteristics, suggesting that the soft penalty is effective across a range of noise levels. We agree that improving value function quality remains a valuable complementary direction.
 
-We believe we have addressed all the raised concerns. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
+We hope we have addressed all the raised concerns. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
 
 ---
 
@@ -67,7 +67,7 @@ We will move manipulation results to the main text and discuss both locomotion a
 
 We will tighten these definitions in the revision. By "locally consistent geometric structure" we mean that value-derived distances are approximately correct for nearby state pairs (within the trust region $\tau$), even when they are unreliable at longer horizons. We will make this precise.
 
-We believe we have addressed all the raised concerns with new experiments (which we will include in the revised paper) and planned revisions. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
+We hope we have addressed all the raised concerns. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
 
 ---
 
@@ -77,7 +77,7 @@ We thank Reviewer 1VSa for the thorough and constructive review.
 
 > The main limitation is the narrow range of tasks in the evaluation... The framing overstates the method's scope.
 
-Manipulation results are in Appendix C and Figure 5. We will move them to the main text and clarify in the abstract that the primary gains are in long-horizon locomotion. We note that TTGS does not degrade performance on manipulation tasks; it defaults to base policy behavior when the graph is sparse or disconnected.
+Manipulation results are in Appendix C and Figure 5. We will move them to the main text and clarify in the abstract that the primary gains are in long-horizon locomotion. We note that TTGS does not degrade performance on manipulation tasks; it defaults to base policy behavior when the coverage is sparse.
 
 > Graph-based planning over dataset states has prior precedent. Earlier work, such as SoRB (Eysenbach et al., 2019\) and related methods, has explored this direction.
 
@@ -110,7 +110,7 @@ We provide new scaling experiments (HIQL, 8 seeds):
 | 4000 | 76.5 ±5.2 | 25.5 ±0.9 | 0.69 |
 | 8000 | 81.1 ±2.5 | 88.6 ±2.5 | 1.13 |
 
-Performance increases with number of samples. Build time grows quadratically but remains under 2 minutes even at $M{=}8000$. Path computation stays under 1.5s.
+Performance increases with the number of samples. Build time grows quadratically but remains under 2 minutes even at $M{=}8000$. Path computation stays under 1.5s.
 
 > Graph construction depends on access to the full offline dataset at test time.
 
@@ -120,7 +120,7 @@ No, access to the full offline dataset is not required. We merely require access
 
 This is a very interesting question. We conducted a new manual analysis of 100 failed episodes on navigation tasks. The dominant failure mode is the base policy failing to reach a close subgoal, while the planned path itself is valid. Path-level failures (e.g., paths through walls due to graph artifacts) are rare. This confirms that TTGS's bottleneck is policy execution, not planning quality, and that improving low-level control is complementary to our approach. We will add this analysis.
 
-We believe we have addressed all raised concerns with new experiments (which we will include in the revised paper) and planned revisions. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
+We hope we have addressed all raised concerns with new experiments (which we will include in the revised paper) and planned revisions. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
 
 ---
 
@@ -151,7 +151,7 @@ We ran this experiment with HIQL, $M{=}4000$, 8 seeds:
 | HIQL + L2-kNN | 20 | 66.6 ±3.6 | 0.00 |
 | HIQL + L2-kNN | 50 | 9.6 ±7.0 | 0.00 |
 
-This experiment is informative in several ways. First, waypoint planning with geometric distances does help substantially at the right $k$, confirming that graph-based subgoal decomposition is a powerful idea. However, L2-kNN is fragile: performance is highly sensitive to $k$, with graph disconnections at low $k$ and wormhole-like shortcuts at high $k$. The optimal $k$ also differs across environments ($k{=}10$ for humanoidmaze, $k{=}20$ for antmaze). TTGS addresses exactly this fragility through its soft penalty and full-graph construction, achieving 76.7% and 76.5% without needing to select $k$. Second, the L2 baseline computes distances between body positions, which requires privileged knowledge of which observation dimensions correspond to the agent's position. In visual domains this information is simply absent. Value-derived distances, which TTGS uses by default, require no such privileged knowledge and perform comparably to L2 on state-based tasks (Table 1) while being the only option for pixel-based tasks.
+This experiment is informative in several ways. First, waypoint planning with geometric distances does help substantially at the right $k$, confirming that graph-based subgoal decomposition is a powerful idea. However, L2-kNN is fragile: performance is sensitive to $k$, with graph disconnections at low $k$ and wormhole-like shortcuts at high $k$. The optimal $k$ also differs across environments ($k{=}10$ for humanoidmaze, $k{=}20$ for antmaze). TTGS addresses exactly this fragility through its soft penalty and full-graph construction, achieving 76.7% and 76.5% without needing to select $k$. Second, the L2 baseline computes distances between body positions, which requires privileged knowledge of which observation dimensions correspond to the agent's position. In visual domains this information is simply absent. Value-derived distances, which TTGS uses by default, require no such privileged knowledge and perform comparably to L2 on state-based tasks (Table 1) while being the only option for pixel-based tasks. We also used our subgoal selection procedure for this experiment, which relies on the distance threshold $T$. This would require tuning both distance-based quantity and number of neighbours, while TTGS has two distance-based hyperparameters that are easy to tune together with $T=2\tau$ heuristic.
 
 > For each baseline method (HIQL, QRL, etc.) how are the subgoals sampled during training, and what is the distribution of goal distances?
 
@@ -163,10 +163,10 @@ Large $\tau$ and $T$ cause the path to degenerate to (start, goal), recovering b
 
 > Are there quantitative predictors that can be used to predict when TTGS would help or not?
 
-We conducted a new manual analysis of 100 failed navigation episodes. The dominant cause of failure is the base policy failing to reach a close subgoal, while the planned path is geometrically valid. This suggests a simple predictor: TTGS helps most when the base policy is reliable at short range but fails at long horizons. For manipulation, we analyze graph structure in Appendix C and show that sparse coverage and out-of-distribution goals limit the graph's connectivity. We will discuss both in the main text.
+We conducted a new manual analysis of 100 failed navigation episodes. The dominant cause of failure is the base policy failing to reach a close subgoal, while the planned path is geometrically valid. This suggests a simple predictor: TTGS helps most when the base policy is reliable at short range but fails at long horizons. For manipulation, we analyze graph structure in Appendix C and show that sparse coverage and out-of-distribution goals limit the graph's connectivity. We will discuss both in the main text. Regarding scalability, we provide M-sweep experiments in our response to Reviewer 1VSa showing how performance scales with graph size and computational overhead remains modest (under 2 minutes even at $M{=}8000$).
 
 > Section 2 typos.
 
 Thank you, we will fix these.
 
-We believe we have addressed all raised concerns with new experiments (which we will include in the revised paper) and planned revisions. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.  
+We hope we have addressed all raised concerns with new experiments (which we will include in the revised paper) and planned revisions. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.  
