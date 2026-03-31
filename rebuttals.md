@@ -118,7 +118,7 @@ No, access to the full offline dataset is not required. We merely require access
 
 > When the method fails, what are the primary failure modes?
 
-This is a very interesting question. We conducted a new manual analysis of 100 failed episodes on navigation tasks. The dominant failure mode is the base policy failing to reach a close subgoal, while the planned path itself is valid. Path-level failures (e.g., paths through walls due to graph artifacts) are rare. This confirms that TTGS's bottleneck is policy execution, not planning quality, and that improving low-level control is complementary to our approach. We will add this analysis.
+We analyzed 100 failed episodes across 4 agents (HIQL, QRL, GCIQL, OTA) and 2 environments (antmaze-giant-stitch, humanoidmaze-giant-stitch). All navigation failures look like base policy failures: the agent gets stuck near a subgoal (e.g., humanoid falls) or passes the goal without reaching it. We saw no paths through walls or coverage gaps. On manipulation, evaluation goals lie outside the data distribution, creating a manifold gap; TTGS defaults to the base policy (Appendix C).
 
 We hope we have addressed all raised concerns with new experiments (which we will include in the revised paper) and planned revisions. If any remain, we would be happy to discuss them further. We kindly ask the reviewer to consider updating their score in light of these responses.
 
@@ -155,7 +155,7 @@ This experiment is informative in several ways. First, waypoint planning with ge
 
 > For each baseline method (HIQL, QRL, etc.) how are the subgoals sampled during training, and what is the distribution of goal distances?
 
-All base learners are trained with their original published hyperparameters and are exposed to long-range goals. HIQL and GCIQL mix future-trajectory goals (50%, geometric sampling with mean ${\sim}100$ steps) and random dataset goals (30%). QRL uses 100% random goals. All methods are thus trained with long-range goals in mind. TTGS provides complementary gains on top of these already-tuned baselines.
+All base learners are trained with their original published hyperparameters and are exposed to long-range goals. HIQL and GCIQL mix future-trajectory goals (50%, geometric sampling with mean ${\sim}100$ steps), current-state goals (20%), and random dataset goals (30%). QRL uses 100% random goals. All methods are thus trained with long-range goals in mind. TTGS provides complementary gains on top of these already-tuned baselines.
 
 > Are there environments in which the baselines are already mostly successful where a poor choice of $\tau$ and $T$ would result in worse performance?
 
