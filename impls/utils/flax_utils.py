@@ -34,8 +34,8 @@ class ModuleDict(nn.Module):
         if name is None:
             if kwargs.keys() != self.modules.keys():
                 raise ValueError(
-                    f'When `name` is not specified, kwargs must contain the arguments for each module. '
-                    f'Got kwargs keys {kwargs.keys()} but module keys {self.modules.keys()}'
+                    f"When `name` is not specified, kwargs must contain the arguments for each module. "
+                    f"Got kwargs keys {kwargs.keys()} but module keys {self.modules.keys()}"
                 )
             out = {}
             for key, value in kwargs.items():
@@ -105,7 +105,7 @@ class TrainState(flax.struct.PyTreeNode):
         """
         if params is None:
             params = self.params
-        variables = {'params': params}
+        variables = {"params": params}
         if method is not None:
             method_name = getattr(self.model_def, method)
         else:
@@ -142,9 +142,15 @@ class TrainState(flax.struct.PyTreeNode):
         grad_min = jax.tree_util.tree_map(jnp.min, grads)
         grad_norm = jax.tree_util.tree_map(jnp.linalg.norm, grads)
 
-        grad_max_flat = jnp.concatenate([jnp.reshape(x, -1) for x in jax.tree_util.tree_leaves(grad_max)], axis=0)
-        grad_min_flat = jnp.concatenate([jnp.reshape(x, -1) for x in jax.tree_util.tree_leaves(grad_min)], axis=0)
-        grad_norm_flat = jnp.concatenate([jnp.reshape(x, -1) for x in jax.tree_util.tree_leaves(grad_norm)], axis=0)
+        grad_max_flat = jnp.concatenate(
+            [jnp.reshape(x, -1) for x in jax.tree_util.tree_leaves(grad_max)], axis=0
+        )
+        grad_min_flat = jnp.concatenate(
+            [jnp.reshape(x, -1) for x in jax.tree_util.tree_leaves(grad_min)], axis=0
+        )
+        grad_norm_flat = jnp.concatenate(
+            [jnp.reshape(x, -1) for x in jax.tree_util.tree_leaves(grad_norm)], axis=0
+        )
 
         final_grad_max = jnp.max(grad_max_flat)
         final_grad_min = jnp.min(grad_min_flat)
@@ -152,9 +158,9 @@ class TrainState(flax.struct.PyTreeNode):
 
         info.update(
             {
-                'grad/max': final_grad_max,
-                'grad/min': final_grad_min,
-                'grad/norm': final_grad_norm,
+                "grad/max": final_grad_max,
+                "grad/min": final_grad_min,
+                "grad/norm": final_grad_norm,
             }
         )
 
@@ -173,11 +179,11 @@ def save_agent(agent, save_dir, epoch):
     save_dict = dict(
         agent=flax.serialization.to_state_dict(agent),
     )
-    save_path = os.path.join(save_dir, f'params_{epoch}.pkl')
-    with open(save_path, 'wb') as f:
+    save_path = os.path.join(save_dir, f"params_{epoch}.pkl")
+    with open(save_path, "wb") as f:
         pickle.dump(save_dict, f)
 
-    print(f'Saved to {save_path}')
+    print(f"Saved to {save_path}")
 
 
 def restore_agent(agent, restore_path, restore_epoch):
@@ -190,15 +196,15 @@ def restore_agent(agent, restore_path, restore_epoch):
     """
     candidates = glob.glob(restore_path)
 
-    assert len(candidates) == 1, f'Found {len(candidates)} candidates: {candidates}'
+    assert len(candidates) == 1, f"Found {len(candidates)} candidates: {candidates}"
 
-    restore_path = candidates[0] + f'/params_{restore_epoch}.pkl'
+    restore_path = candidates[0] + f"/params_{restore_epoch}.pkl"
 
-    with open(restore_path, 'rb') as f:
+    with open(restore_path, "rb") as f:
         load_dict = pickle.load(f)
 
-    agent = flax.serialization.from_state_dict(agent, load_dict['agent'])
+    agent = flax.serialization.from_state_dict(agent, load_dict["agent"])
 
-    print(f'Restored from {restore_path}')
+    print(f"Restored from {restore_path}")
 
     return agent

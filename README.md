@@ -1,7 +1,13 @@
 # TEST-TIME GRAPH SEARCH FOR GOAL-CONDITIONED REINFORCEMENT LEARNING
 
-Paper: [https://arxiv.org/abs/2510.07257](https://arxiv.org/abs/2510.07257)
-Website: [https://ktolnos.github.io/ttgs/](https://ktolnos.github.io/ttgs/)
+<p align="center">
+  <img src="assets/TTGS.png" alt="TTGS teaser" width="60%">
+</p>
+
+<p align="center">
+  <a href="https://arxiv.org/abs/2510.07257"><strong>Paper</strong></a> |
+  <a href="https://ktolnos.github.io/ttgs/"><strong>Project Page</strong></a>
+</p>
 
 ## Overview
 This is the implementation of TTGS method.
@@ -16,7 +22,9 @@ components live under `impls/`:
   WandB logging helpers introduced by TTGS.
 - `impls/agents/` extends the OGBench agent library. In particular,
   `gciql.py`, `hiql.py`, and `qrl.py` expose value-to-distance conversions used
-  by TTGS to turn learned value estimates into expected steps-to-goal signals.
+  by TTGS to turn learned value estimates into expected steps-to-goal signals for these three base agents.
+- In addition to the OGBench-style agents, we include implementations/adaptations of **OTA (Option-aware Temporally Abstracted value)** and **SAW (Subgoal Advantage-Weighted policy bootstrapping)** for combining with TTGS as two extra base agents. We vendor `ota-v/` and `saw/` under `impls/` so they can be run through the same launcher and evaluation pipeline as the OGBench-style agents.
+
 ## Requirements
 * Python 3.10
 * MuJoCo 3.1.6
@@ -59,16 +67,5 @@ python main.py --subsample_ablt=random_points --random_size=4000 --tau=24 --thre
 ## Acknowledgments
 This codebase is inspired by or partly uses code from the following repositories:
 - [OGBench](https://github.com/seohongpark/ogbench) for the dataset structure and the state-based and pixel-based environments.
-
-## Citation (BibTeX)
-```
-@misc{opryshko2025testtimegraphsearchgoalconditioned,
-      title={Test-Time Graph Search for Goal-Conditioned Reinforcement Learning}, 
-      author={Evgenii Opryshko and Junwei Quan and Claas Voelcker and Yilun Du and Igor Gilitschenski},
-      year={2025},
-      eprint={2510.07257},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2510.07257}, 
-}
-```
+- [OTA-V](https://github.com/ota-v/ota-v) for the implementation and rendering of OTA.
+- [SAW](https://github.com/johnlyzhou/saw) for the implementation and rendering of SAW.
