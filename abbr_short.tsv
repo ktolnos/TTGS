@@ -1,0 +1,17 @@
+SIGMOD | Proceedings of the .* International Conference on Management of Data, {SIGMOD} Conference
+NAACL-HLT | Proceedings of the .* Conference of the North {A}merican Chapter of the Association for Computational Linguistics: Human Language Technologies
+EMNLP | Proceedings of the .* Conference on Empirical Methods in Natural Language Processing
+ACL | Proceedings of the .* Annual Meeting of the Association for Computational Linguistics
+WWW | {WWW} '.*: The Web Conference .*
+ICLR | .*International Conference on Learning Representations
+ICML | .*International Conference on Machine Learning
+ICML | Machine Learning, Proceedings of the .* International Conference
+NeurIPS | .*Neural Information Processing Systems
+AAAI | Proceedings of the .*AAAI.* Conference on Artificial Intelligence
+KDD | The .* {ACM} {SIGKDD} International Conference on Knowledge Discovery
+CVPR | .*IEEE Computer Society Conference on Computer Vision and Pattern Recognition.*
+CVPR | .*IEEE/CVF Conference on Computer Vision and Pattern Recognition,.*
+ICDE | .*International Conference on Data Engineering.*
+SIGIR | .*International {ACM} {SIGIR}.*
+INTERSPEECH | Interspeech .*Annual Conference of the International Speech.*
+TKDE | IEEE Transactions on Knowledge and Data Engineering

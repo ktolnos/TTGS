@@ -1,0 +1,1 @@
+rebiber -i /home/eop/ttgs/main.bib -o /home/eop/ttgs/main.bib -s True -a abbr_short.tsv -r pages,editor,volume,number,month,url,biburl,address,publisher,bibsource,timestamp,doi,series,note,isbn,issn
