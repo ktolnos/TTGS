@@ -81,7 +81,7 @@
   \begin{icmlauthorlist}
     \icmlauthor{Evgenii Opryshko}{equal,uoft,vector}
     \icmlauthor{Junwei Quan}{equal,uoft}
-    \icmlauthor{Claas Voelker}{austin}
+    \icmlauthor{Claas Voelcker}{austin}
     \icmlauthor{Yilun Du}{harvard}
     \icmlauthor{Igor Gilitschenski}{uoft,vector}
   \end{icmlauthorlist}
@@ -97,19 +97,16 @@
   % paper; these are used to populate the "keywords" metadata in the PDF but
   % will not be shown in the document
   \icmlkeywords{Machine Learning, ICML}
-
-
-  \author{Evgenii Opryshko$^{1,2}$\thanks{Equal contribution}~\thanks{Correspondance to <eop@cs.toronto.edu>\quad Website: \href{https://ktolnos.github.io/ttgs/}{https://ktolnos.github.io/ttgs/}}, Junwei Quan$^{1}$\footnotemark[1], Claas Voelker$^{1,2}$, Yilun Du$^{3}$, Igor Gilitschenski$^{1,2}$
-\\
-$^1$University of Toronto \quad $^2$Vector Institute \quad
-$^3$Harvard University
-}
+% ]
+%   \author{Evgenii Opryshko$^{1,2}$\thanks{Equal contribution}~\thanks{Correspondance to <eop@cs.toronto.edu>\quad Website: \href{https://ktolnos.github.io/ttgs/}{https://ktolnos.github.io/ttgs/}}, Junwei Quan$^{1}$\footnotemark[1], Claas Voelcker$^{1,2}$, Yilun Du$^{3}$, Igor Gilitschenski$^{1,2}$
+% \\
+% $^1$University of Toronto \quad $^2$Vector Institute \quad
+% $^3$Harvard University
+% }
 
 
   \vskip 0.3in
 ]
-
-
 % this must go after the closing bracket ] following \twocolumn[ ...
 
 % This command actually creates the footnote in the first column listing the
@@ -120,7 +117,7 @@ $^3$Harvard University
 
 % Use ONE of the following lines. DO NOT remove the command.
 % If you have no special notice, KEEP empty braces:
-\printAffiliationsAndNotice{}  % no special notice (required even if empty)
+\printAffiliationsAndNotice{\icmlEqualContribution}  % no special notice (required even if empty)
 % Or, if applicable, use the standard equal contribution text:
 % \printAffiliationsAndNotice{\icmlEqualContribution}
 
@@ -312,7 +309,7 @@ During execution, the agent selects subgoals from $(p_0,\dots,p_L)$ using a step
 
 \section{Experiments}\label{sec:experiments}
 
-We evaluate TTGS on OGBench~\citep{ogbench_park2025} using three strong offline GCRL baselines provided by the benchmark: QRL, GCIQL, and HIQL~\citep{tongzhouw2023qrl,park2024hiqlofflinegoalconditionedrl}. Additionally, we include SAW~\citep{zhou2025flattening} and OTA~\citep{ota2025} to broaden the evaluation. For each dataset, we compare the success rate of the frozen base policy with and without TTGS across five tasks. Every task is evaluated with 50 rollouts, and we report the mean and standard deviation over eight random seeds. In tables, methods within 95\% of the best mean are bolded, and cases where TTGS exceeds its corresponding base learner are underlined. All base agents are trained with the public OGBench code using default hyperparameters, and TTGS is applied post hoc without any changes to training.
+We evaluate TTGS on OGBench~\citep{ogbench_park2025} using three strong offline GCRL baselines provided by the benchmark: QRL, GCIQL, and HIQL~\citep{tongzhouw2023qrl,park2024hiqlofflinegoalconditionedrl}. Additionally, we include SAW~\citep{zhou2025flattening} and OTA~\citep{ota2025} to broaden the evaluation. For each dataset, we compare the success rate of the frozen base policy with and without TTGS across five base learners. Every task is evaluated with 50 rollouts, and we report the mean and standard deviation over eight random seeds. In tables, methods within 95\% of the best mean are bolded, and cases where TTGS exceeds its corresponding base learner are underlined. All base agents are trained with the public OGBench code using default hyperparameters, and TTGS is applied post hoc without any changes to training.
 
 \paragraph{Datasets}
 OGBench provides offline datasets for GCRL, including locomotion domains that test long-horizon and hierarchical reasoning~\citep{ogbench_park2025}. We use \texttt{pointmaze}, \texttt{antmaze}, and \texttt{humanoidmaze} with \texttt{medium}, \texttt{large}, and \texttt{giant} mazes and three data-collection regimes: \texttt{navigate} uses a noisy expert reaching random goals, \texttt{stitch} consists of short trajectories that require trajectory stitching, and \texttt{explore} contains random exploratory rollouts (available only for \texttt{antmaze}). For \texttt{antmaze} and \texttt{humanoidmaze}, \texttt{visual} variants with pixel-based observations are also available.
@@ -383,7 +380,7 @@ To test the generality of TTGS beyond value-based distances, we also evaluate a 
 \begin{table}[t]
   \centering
   \small
-  \caption{\textbf{Success rates on OGBench manipulation tasks (GCIQL).} TTGS matches or improves on the base policy across four tasks; gains are small because the offline data provides few intermediate states between start and goal, and TTGS falls back to the base policy when no reliable plan exists.}
+    \caption{\textbf{Success rates on OGBench manipulation tasks (GCIQL).} TTGS matches or improves on the base policy across four tasks; gains are small because the offline data provides few intermediate states between start and goal, and TTGS falls back to the base policy when no reliable plan exists.}
   \label{tab:manipulation_main}
   \begin{tabular*}{1\linewidth}{@{\extracolsep{\fill}}lrr}
     \toprule
@@ -774,7 +771,7 @@ To compare the sensitivity to hyperparameters with GAS, we compare HIQL+TTGS usi
 
 \section{Base Learners and Value-to-Distance Mappings} \label{apdx:value_distance}
 
-\paragraph{Base learners.} We evaluate five offline GCRL base learners. For HIQL, QRL, and GCIQL we use the OGBench implementations and hyperparameters~\citep{ogbench_park2025}; for SAW and OTA we use the authors' official code and published hyperparameters. The methods are: \textbf{HIQL} (Hierarchical Implicit Q-Learning;~\citealp{park2024hiqlofflinegoalconditionedrl}), a hierarchical extension of IQL that learns a high-level subgoal policy and a low-level goal-reaching policy via expectile regression on goal-conditioned values; \textbf{QRL} (Quasi-metric Reinforcement Learning;~\citealp{tongzhouw2023qrl}), which learns a non-negative quasi-metric distance function $d(s,g)$ that approximates the number of steps from $s$ to $g$ and converts it to a policy via a one-step improvement; \textbf{GCIQL} (Goal-Conditioned IQL;~\citealp{Kostrikov2022}), a non-hierarchical adaptation of IQL with a single goal-conditioned value head; \textbf{SAW} (Flattening Hierarchies with Policy Bootstrapping;~\citealp{zhou2025flattening}), which bootstraps a flat goal-conditioned policy from a hierarchical learner, achieving strong long-horizon performance with a non-hierarchical actor; and \textbf{OTA} (Option-aware Temporally Abstracted value;~\citealp{ota2025}), which learns goal-conditioned value functions at two temporal resolutions (primitive steps and option transitions) and combines them. We chose HIQL, QRL, and GCIQL because they are the three base learners reported in the OGBench evaluation; we additionally include SAW and OTA as the strong recent offline GCRL method.
+\paragraph{Base learners.} We evaluate five offline GCRL base learners. For HIQL, QRL, and GCIQL we use the OGBench implementations and hyperparameters~\citep{ogbench_park2025}; for SAW and OTA we use the authors' official code and published hyperparameters. The methods are: \textbf{HIQL} (Hierarchical Implicit Q-Learning;~\citealp{park2024hiqlofflinegoalconditionedrl}), a hierarchical extension of IQL that learns a high-level subgoal policy and a low-level goal-reaching policy via expectile regression on goal-conditioned values; \textbf{QRL} (Quasi-metric Reinforcement Learning;~\citealp{tongzhouw2023qrl}), which learns a non-negative quasi-metric distance function $d(s,g)$ that approximates the number of steps from $s$ to $g$ and converts it to a policy via a one-step improvement; \textbf{GCIQL} (Goal-Conditioned IQL;~\citealp{Kostrikov2022}), a non-hierarchical adaptation of IQL with a single goal-conditioned value head; \textbf{SAW} (Flattening Hierarchies with Policy Bootstrapping;~\citealp{zhou2025flattening}), which bootstraps a flat goal-conditioned policy from a hierarchical learner, achieving strong long-horizon performance with a non-hierarchical actor; and \textbf{OTA} (Option-aware Temporally Abstracted value;~\citealp{ota2025}), which learns goal-conditioned value functions at two temporal resolutions (primitive steps and option transitions) and combines them. We chose HIQL, QRL, and GCIQL because they are the three base learners reported in the OGBench evaluation; we additionally include SAW and OTA as the strong recent offline GCRL methods.
 
 \paragraph{Subgoal sampling distributions used during base-learner training.} All base learners are trained with their original published hyperparameters and are exposed to long-range goals during training. HIQL and GCIQL mix future-trajectory goals (50\%, geometric sampling with mean ${\sim}100$ steps), current-state goals (20\%), and random dataset goals (30\%); QRL uses 100\% random dataset goals; SAW and OTA use the goal-sampling distributions reported by their authors, which were tuned for long-range goals on this benchmark.
 
@@ -814,7 +811,7 @@ For the low-level critic this directly yields an environment-step estimate
 $d_{\text{low}}(s,g)=\hat d\!\bigl(V^{\text{low}}(s,g);\gamma_{\text{low}}\bigr)$.
 For the high-level critic, the value is defined at option boundaries and corresponds to accumulating a penalty $-1$ for each \emph{unsuccessful} option and $0$ for the final successful option; therefore $\hat d$ recovers the expected number of failed options
 $k_{\text{opt}}(s,g)=\hat d\!\bigl(V^{\text{high}}(s,g);\gamma_{\text{high}}\bigr)$.
-This means that $k_{\text{opt}}(s,g)+1$ is expected amount of options to reach the goal. It can be converted to environment steps by
+This means that $k_{\text{opt}}(s,g)+1$ is the expected number of options to reach the goal. It can be converted to environment steps by
 \[
 d_{\text{high}}(s,g)=n\bigl(k_{\text{opt}}(s,g)+1\bigr).
 \]
@@ -1124,11 +1121,14 @@ We evaluate a variant of TTGS that triggers a full recalculation of the shortest
     \end{tabular*}
 \end{table}
 
+\section{Use of Generative AI}
+LLMs were used to revise and polish writing on a single-paragraph scale.
+
 \section{Hyperparameters} \label{apdx:res_design}
 
 TTGS does not require training and has only three hyperparameters, so tuning is quick and simple. We did not run extensive sweeps; \autoref{tab:hyperparams} lists the values used in our experiments.
 
-\begin{table}[ht]
+\begin{table}[t]
     \centering
     \caption{Hyperparameter settings used in our experiments.}
     \label{tab:hyperparams}
@@ -1143,7 +1143,7 @@ TTGS does not require training and has only three hyperparameters, so tuning is 
         pointmaze-large-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
         pointmaze-large-stitch-v0      & 4000 & (24, 48) & (24, 48) & (48, 96) & (24, 48) & (24, 48)\\
         pointmaze-giant-navigate-v0   & 4000 & (24, 48) & (24, 48) & (12, 24) & (24, 48) & (24, 48)\\
-        pointmaze-giant-stitch-v0     & 4000 & (12, 24) & (12, 24) & (6, 12) & (24, 48) & (24, 48)\\
+        pointmaze-giant-stitch-v0     & 4000 & (24, 48) & (12, 24) & (6, 12) & (24, 48) & (24, 48)\\
         antmaze-medium-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
         antmaze-medium-stitch-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
         antmaze-large-navigate-v0      & 4000 & (24, 48) & (24, 48) & (24, 48) & (24, 48) & (24, 48)\\
@@ -1184,9 +1184,6 @@ e.g., $(\tau, T)\in\{(12,24),(24,48),(48,96)\}$, which keeps the search space co
 For each candidate $(\tau, T)$, we first constructed the TTGS graph and qualitatively checked the resulting shortest paths:
 (i) whether paths contain ``blank'' segments indicative of poor connectivity or unreliable long edges, and
 (ii) whether paths become excessively fragmented into too many short hops (suggesting an overly conservative threshold).
-We then ran 1 random seed with promising parameters and selected the pair that produced stable, interpretable paths and the strongest improvement in task performance. We didn't tune SAW across environments and still observe reasonable performance.
+We then ran 1 random seed with promising parameters and selected the pair that produced stable, interpretable paths and the strongest improvement in task performance. We did not tune SAW across environments and still observe reasonable performance.
 Since the sweep involves only a handful of settings, we encourage users to repeat this procedure for new environments or base agents, as the optimal trade-off between long hops and reliability can vary.
-
-\section{Use of Generative AI}
-LLMs were used to revise and polish writing on a single-paragraph scale.
 \end{document}
